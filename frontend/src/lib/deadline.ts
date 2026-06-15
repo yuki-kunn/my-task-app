@@ -17,3 +17,18 @@ export function getDeadlineStyle(deadlineStr: string, isCompleted: boolean): str
 	const gAndB = Math.floor(200 + ratio * 55);
 	return `background-color: rgb(255, ${gAndB}, ${gAndB}); border-left: 4px solid rgb(239, ${Math.floor(ratio * 68)}, ${Math.floor(ratio * 68)});`;
 }
+
+const MONTH_NAMES = [
+	'1月', '2月', '3月', '4月', '5月', '6月',
+	'7月', '8月', '9月', '10月', '11月', '12月'
+];
+
+/** Formats a stored deadline (JST wall-clock serialized as UTC) for display, without re-applying a timezone shift. */
+export function formatDeadline(deadlineStr: string): string {
+	const d = new Date(deadlineStr);
+	const month = MONTH_NAMES[d.getUTCMonth()];
+	const day = d.getUTCDate();
+	const hours = String(d.getUTCHours()).padStart(2, '0');
+	const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+	return `${month}${day}日 ${hours}:${minutes}`;
+}

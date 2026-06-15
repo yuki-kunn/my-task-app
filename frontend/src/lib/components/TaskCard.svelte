@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Trash2, Edit, Calendar as Memo, RotateCw } from 'lucide-svelte';
-	import { getDeadlineStyle } from '$lib/deadline';
+	import { getDeadlineStyle, formatDeadline } from '$lib/deadline';
 	import type { Task } from '$lib/types';
 
 	const REPEAT_LABEL: Record<string, string> = {
@@ -40,12 +40,7 @@
 			</p>
 			<p class="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
 				<Memo size={12} />
-				{new Date(task.deadline).toLocaleString('ja-JP', {
-					month: 'short',
-					day: 'numeric',
-					hour: '2-digit',
-					minute: '2-digit'
-				})}
+				{formatDeadline(task.deadline)}
 				{#if task.repeat_type !== 'none'}
 					<span
 						class="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded text-[10px] ml-1 flex items-center gap-0.5"
