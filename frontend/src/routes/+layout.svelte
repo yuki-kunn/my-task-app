@@ -1,6 +1,5 @@
 <script lang="ts">
 	import '../app.css';
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { CheckSquare, Calendar, Settings, LogOut } from 'lucide-svelte';
@@ -11,7 +10,9 @@
 	let isAuthenticated = $state(false);
 	let checked = $state(false);
 
-	onMount(() => {
+	$effect(() => {
+		// Re-check on every navigation so logging in updates the nav bar without a reload.
+		page.url.pathname;
 		isAuthenticated = !!getToken();
 		if (!isAuthenticated && page.url.pathname !== '/') {
 			goto('/');
