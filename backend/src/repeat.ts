@@ -5,13 +5,13 @@ export function nextDeadline(deadline: Date, repeatType: RepeatType): Date | nul
   const next = new Date(deadline);
   switch (repeatType) {
     case 'daily':
-      next.setDate(next.getDate() + 1);
+      next.setUTCDate(next.getUTCDate() + 1);
       return next;
     case 'weekly':
-      next.setDate(next.getDate() + 7);
+      next.setUTCDate(next.getUTCDate() + 7);
       return next;
     case 'yearly':
-      next.setFullYear(next.getFullYear() + 1);
+      next.setUTCFullYear(next.getUTCFullYear() + 1);
       return next;
     default:
       return null;

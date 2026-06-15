@@ -1,8 +1,12 @@
+// Deadlines are stored as JST wall-clock values serialized as if they were UTC
+// (see backend/src/index.ts), so "now" must be expressed the same way for comparisons.
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
 /** Returns inline CSS for a task card: white when far away, escalating to red as the deadline nears or passes. */
 export function getDeadlineStyle(deadlineStr: string, isCompleted: boolean): string {
 	if (isCompleted) return 'background-color: #f3f4f6; color: #9ca3af;';
 
-	const now = Date.now();
+	const now = Date.now() + JST_OFFSET_MS;
 	const deadline = new Date(deadlineStr).getTime();
 	const diffHours = (deadline - now) / (1000 * 60 * 60);
 

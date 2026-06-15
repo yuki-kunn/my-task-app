@@ -24,8 +24,18 @@ app.use(
   })
 );
 
+// Task deadlines are wall-clock times with no timezone (the `datetime-local`
+// input value, e.g. "2026-06-15T09:00"). We treat that literal value as UTC
+// throughout - by appending "Z" when parsing - so the same digits are stored
+// in MySQL and round-tripped back to the client without any timezone shift.
+function parseDeadline(value: string | Date) {
+  if (value instanceof Date) return value;
+  if (value.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(value)) return new Date(value);
+  return new Date(value.length === 16 ? `${value}:00Z` : `${value}Z`);
+}
+
 function toMysqlDatetime(value: string | Date) {
-  return new Date(value).toISOString().slice(0, 19).replace('T', ' ');
+  return parseDeadline(value).toISOString().slice(0, 19).replace('T', ' ');
 }
 
 // --- Public routes ---------------------------------------------------------
@@ -119,7 +129,7 @@ app.put('/api/tasks/:id', async (c) => {
 
   // When a repeating task is marked complete, schedule its next occurrence.
   if (is_completed && repeat_type && repeat_type !== 'none') {
-    const next = nextDeadline(new Date(deadline), repeat_type);
+    const next = nextDeadline(parseDeadline(deadline), repeat_type);
     if (next) {
       await pool.query(
         'INSERT INTO tasks (id, title, deadline, repeat_type, sort_order) VALUES (?, ?, ?, ?, 0)',

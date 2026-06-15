@@ -30,9 +30,10 @@
 				deadline = `${queryDate}T12:00`;
 				sessionStorage.removeItem('calendar_target_date');
 			} else {
-				const now = new Date();
-				now.setHours(now.getHours() + 1);
-				deadline = now.toISOString().slice(0, 16);
+				// Express "now + 1h" as JST wall-clock time (matching how deadlines are stored).
+				const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+				const jstPlusOneHour = new Date(Date.now() + JST_OFFSET_MS + 60 * 60 * 1000);
+				deadline = jstPlusOneHour.toISOString().slice(0, 16);
 			}
 		}
 	});
