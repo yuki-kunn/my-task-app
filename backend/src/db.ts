@@ -1,14 +1,20 @@
 import mysql from 'mysql2/promise';
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST ?? '127.0.0.1',
-  port: Number(process.env.DB_PORT ?? 3307),
-  user: process.env.DB_USER ?? 'user',
-  password: process.env.DB_PASSWORD ?? 'password',
-  database: process.env.DB_NAME ?? 'todo_db',
-  waitForConnections: true,
-  connectionLimit: 10,
-});
+// Railway's MySQL plugin exposes a connection string via MYSQL_URL/DATABASE_URL.
+// Falls back to discrete DB_* vars for local development.
+const connectionUrl = process.env.MYSQL_URL ?? process.env.DATABASE_URL;
+
+const pool = connectionUrl
+  ? mysql.createPool({ uri: connectionUrl, waitForConnections: true, connectionLimit: 10 })
+  : mysql.createPool({
+      host: process.env.DB_HOST ?? '127.0.0.1',
+      port: Number(process.env.DB_PORT ?? 3307),
+      user: process.env.DB_USER ?? 'user',
+      password: process.env.DB_PASSWORD ?? 'password',
+      database: process.env.DB_NAME ?? 'todo_db',
+      waitForConnections: true,
+      connectionLimit: 10,
+    });
 
 export async function initDB() {
   const connection = await pool.getConnection();
