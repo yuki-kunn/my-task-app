@@ -1,12 +1,50 @@
 <script lang="ts">
-	import { LogOut, ShieldAlert } from 'lucide-svelte';
+	import { onMount } from 'svelte';
+	import { LogOut, ShieldAlert, Bell } from 'lucide-svelte';
 	import { changePassword, clearToken, ApiError } from '$lib/api';
+	import {
+		isPushSupported,
+		getPushSubscription,
+		enablePushNotifications,
+		disablePushNotifications
+	} from '$lib/push';
 
 	let newPassword = $state('');
 	let confirmPassword = $state('');
 	let successMsg = $state('');
 	let errorMsg = $state('');
 	let saving = $state(false);
+
+	let pushSupported = $state(false);
+	let pushEnabled = $state(false);
+	let pushBusy = $state(false);
+	let pushError = $state('');
+
+	onMount(async () => {
+		pushSupported = isPushSupported();
+		if (pushSupported) {
+			const sub = await getPushSubscription();
+			pushEnabled = !!sub;
+		}
+	});
+
+	async function togglePush() {
+		pushBusy = true;
+		pushError = '';
+		try {
+			if (pushEnabled) {
+				await disablePushNotifications();
+				pushEnabled = false;
+			} else {
+				await enablePushNotifications();
+				pushEnabled = true;
+			}
+		} catch (err) {
+			pushError = err instanceof Error ? err.message : '通知設定の変更に失敗しました';
+		} finally {
+			pushBusy = false;
+		}
+	}
 
 	async function handleChangePassword() {
 		successMsg = '';
@@ -82,6 +120,33 @@
 				{saving ? '変更中...' : 'パスワードを変更'}
 			</button>
 		</form>
+	</div>
+
+	<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+		<h2 class="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
+			<Bell size={20} class="text-indigo-600" /> 通知設定
+		</h2>
+		{#if !pushSupported}
+			<p class="text-sm text-gray-500">
+				このブラウザでは通知を利用できません。iPhoneの場合はホーム画面に追加したアプリから開いてください。
+			</p>
+		{:else}
+			<p class="text-sm text-gray-600 mb-4">
+				締め切りが近づいたタスクや、今日締め切りのタスクをプッシュ通知でお知らせします。
+			</p>
+			{#if pushError}
+				<p class="text-red-500 text-sm mb-3">{pushError}</p>
+			{/if}
+			<button
+				onclick={togglePush}
+				disabled={pushBusy}
+				class="w-full py-2 rounded-lg font-semibold transition disabled:opacity-50 {pushEnabled
+					? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+					: 'bg-indigo-600 text-white hover:bg-indigo-700'}"
+			>
+				{pushBusy ? '処理中...' : pushEnabled ? '通知をオフにする' : '通知をオンにする'}
+			</button>
+		{/if}
 	</div>
 
 	<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">

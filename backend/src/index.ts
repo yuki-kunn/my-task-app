@@ -6,6 +6,8 @@ import bcrypt from 'bcryptjs';
 import { pool, initDB } from './db.js';
 import { authMiddleware, createSessionToken } from './auth.js';
 import { nextDeadline, type RepeatType } from './repeat.js';
+import { startScheduler } from './scheduler.js';
+import { isPushConfigured } from './push.js';
 
 const app = new Hono();
 
@@ -111,7 +113,7 @@ app.put('/api/tasks/:id', async (c) => {
   }
 
   await pool.query(
-    'UPDATE tasks SET title = ?, deadline = ?, repeat_type = ?, is_completed = ? WHERE id = ?',
+    'UPDATE tasks SET title = ?, deadline = ?, repeat_type = ?, is_completed = ?, reminder_sent_at = NULL WHERE id = ?',
     [title.trim(), toMysqlDatetime(deadline), repeat_type ?? 'none', is_completed ? 1 : 0, id]
   );
 
@@ -135,6 +137,39 @@ app.delete('/api/tasks/:id', async (c) => {
   return c.json({ success: true });
 });
 
+// --- Push notifications ------------------------------------------------------
+
+app.get('/api/push/vapid-public-key', (c) => {
+  return c.json({ key: process.env.VAPID_PUBLIC_KEY ?? null });
+});
+
+app.post('/api/push/subscribe', authMiddleware, async (c) => {
+  const { endpoint, keys } = await c.req.json<{
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+  }>();
+
+  if (!endpoint || !keys?.p256dh || !keys?.auth) {
+    return c.json({ success: false, message: '購読情報が不正です' }, 400);
+  }
+
+  await pool.query(
+    `INSERT INTO push_subscriptions (endpoint, p256dh, auth) VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE p256dh = ?, auth = ?`,
+    [endpoint, keys.p256dh, keys.auth, keys.p256dh, keys.auth]
+  );
+  return c.json({ success: true });
+});
+
+app.post('/api/push/unsubscribe', authMiddleware, async (c) => {
+  const { endpoint } = await c.req.json<{ endpoint: string }>();
+  if (!endpoint) {
+    return c.json({ success: false, message: 'endpointが必要です' }, 400);
+  }
+  await pool.query('DELETE FROM push_subscriptions WHERE endpoint = ?', [endpoint]);
+  return c.json({ success: true });
+});
+
 const port = Number(process.env.PORT ?? 3000);
 
 initDB()
@@ -145,6 +180,13 @@ initDB()
       await pool.query('INSERT INTO users (password_hash) VALUES (?)', [hash]);
     }
     console.log('DB initialized successfully');
+
+    if (isPushConfigured()) {
+      startScheduler();
+      console.log('Push notification scheduler started');
+    } else {
+      console.warn('VAPID keys are not set - push notifications are disabled');
+    }
   })
   .catch((err) => {
     console.error('MySQLへの接続に失敗しました:', err);

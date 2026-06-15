@@ -94,3 +94,21 @@ export function reorderTasks(orders: { id: string; sort_order: number }[]) {
 		body: JSON.stringify({ orders })
 	});
 }
+
+export function getVapidPublicKey() {
+	return request<{ key: string | null }>('/push/vapid-public-key');
+}
+
+export function subscribePush(subscription: PushSubscriptionJSON) {
+	return request<{ success: boolean }>('/push/subscribe', {
+		method: 'POST',
+		body: JSON.stringify(subscription)
+	});
+}
+
+export function unsubscribePush(endpoint: string) {
+	return request<{ success: boolean }>('/push/unsubscribe', {
+		method: 'POST',
+		body: JSON.stringify({ endpoint })
+	});
+}

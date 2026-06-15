@@ -34,6 +34,17 @@ export async function initDB() {
         repeat_type VARCHAR(20) NOT NULL DEFAULT 'none',
         is_completed BOOLEAN NOT NULL DEFAULT FALSE,
         sort_order INT NOT NULL DEFAULT 0,
+        reminder_sent_at DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        endpoint VARCHAR(500) NOT NULL UNIQUE,
+        p256dh VARCHAR(255) NOT NULL,
+        auth VARCHAR(255) NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);

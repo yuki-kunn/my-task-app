@@ -30,18 +30,15 @@ export default defineConfig({
 					}
 				]
 			},
-			workbox: {
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
-				navigateFallback: '/',
-				runtimeCaching: [
-					{
-						urlPattern: /\/api\/.*$/,
-						handler: 'NetworkOnly'
-					}
-				]
+			strategies: 'injectManifest',
+			srcDir: 'src',
+			filename: 'service-worker.ts',
+			injectManifest: {
+				globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
 			},
 			devOptions: {
-				enabled: false
+				enabled: false,
+				type: 'module'
 			}
 		})
 	]
