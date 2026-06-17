@@ -7,6 +7,7 @@ export interface Task {
 	repeat_type: RepeatType;
 	is_completed: boolean;
 	sort_order: number;
+	color?: string;
 }
 
 export interface Event {
@@ -16,6 +17,7 @@ export interface Event {
 	end_dt: string;
 	memo?: string;
 	repeat_type: RepeatType;
+	color?: string;
 }
 
 export type AiItemType = 'task' | 'event';

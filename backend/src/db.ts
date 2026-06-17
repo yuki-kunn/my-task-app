@@ -45,6 +45,10 @@ export async function initDB() {
     if (reminderCol.length === 0) {
       await connection.query(`ALTER TABLE tasks ADD COLUMN reminder_sent_at DATETIME NULL`);
     }
+    const [taskColorCol] = await connection.query<any[]>(`SHOW COLUMNS FROM tasks LIKE 'color'`);
+    if (taskColorCol.length === 0) {
+      await connection.query(`ALTER TABLE tasks ADD COLUMN color VARCHAR(20) NULL`);
+    }
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS events (
@@ -54,10 +58,16 @@ export async function initDB() {
         end_dt DATETIME NOT NULL,
         memo TEXT NULL,
         repeat_type VARCHAR(20) NOT NULL DEFAULT 'none',
+        color VARCHAR(20) NULL,
         reminder_sent_at DATETIME NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    const [eventColorCol] = await connection.query<any[]>(`SHOW COLUMNS FROM events LIKE 'color'`);
+    if (eventColorCol.length === 0) {
+      await connection.query(`ALTER TABLE events ADD COLUMN color VARCHAR(20) NULL`);
+    }
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS push_subscriptions (

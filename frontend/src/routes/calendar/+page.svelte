@@ -5,6 +5,7 @@
 	import { ChevronLeft, ChevronRight, Plus, Clock, RotateCw, Edit, FileText } from 'lucide-svelte';
 	import { fetchTasks, fetchEvents, ApiError } from '$lib/api';
 	import { formatDeadline } from '$lib/deadline';
+	import { TASK_DOT_COLOR, EVENT_DOT_COLOR } from '$lib/colors';
 	import type { Task, Event } from '$lib/types';
 
 	let tasks: Task[] = $state([]);
@@ -128,12 +129,12 @@
 				>
 					{day}
 					<span class="flex gap-0.5 absolute bottom-1">
-						{#if hasTaskOnDay(day)}
-							<span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
-						{/if}
-						{#if hasEventOnDay(day)}
-							<span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
-						{/if}
+						{#each tasks.filter(t => t.deadline.startsWith(dateStrFor(day))).slice(0,3) as t}
+							<span class="w-1.5 h-1.5 rounded-full {t.color && TASK_DOT_COLOR[t.color] ? TASK_DOT_COLOR[t.color] : 'bg-red-400'}"></span>
+						{/each}
+						{#each events.filter(e => e.start_dt.startsWith(dateStrFor(day))).slice(0,2) as e}
+							<span class="w-1.5 h-1.5 rounded-full {e.color && EVENT_DOT_COLOR[e.color] ? EVENT_DOT_COLOR[e.color] : 'bg-violet-400'}"></span>
+						{/each}
 					</span>
 				</button>
 			{/each}

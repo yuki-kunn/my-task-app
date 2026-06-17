@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { createTask, updateTask, createEvent, updateEvent, ApiError } from '$lib/api';
 	import type { RepeatType, Task, Event } from '$lib/types';
+	import ColorPicker from '$lib/components/ColorPicker.svelte';
 
 	type Mode = 'task' | 'event';
 
@@ -16,6 +17,7 @@
 	let all_day_date = $state('');
 	let memo = $state('');
 	let repeat_type = $state<RepeatType>('none');
+	let color = $state<string | undefined>(undefined);
 	let isEdit = $state(false);
 	let errorMsg = $state('');
 	let saving = $state(false);
@@ -40,6 +42,7 @@
 			title = task.title;
 			deadline = new Date(task.deadline).toISOString().slice(0, 16);
 			repeat_type = task.repeat_type;
+			color = task.color ?? undefined;
 			isEdit = true;
 			sessionStorage.removeItem('edit_task');
 		} else if (editEvent) {
@@ -59,6 +62,7 @@
 			}
 			memo = event.memo ?? '';
 			repeat_type = event.repeat_type;
+			color = event.color ?? undefined;
 			isEdit = true;
 			sessionStorage.removeItem('edit_event');
 		} else {
@@ -104,17 +108,17 @@
 		try {
 			if (mode === 'task') {
 				if (isEdit) {
-					await updateTask({ id, title, deadline, repeat_type, is_completed: false, sort_order: 0 });
+					await updateTask({ id, title, deadline, repeat_type, is_completed: false, sort_order: 0, color });
 				} else {
-					await createTask({ id, title, deadline, repeat_type, is_completed: false });
+					await createTask({ id, title, deadline, repeat_type, is_completed: false, color });
 				}
 			} else {
 				const s = all_day ? `${all_day_date}T00:00` : start_dt;
 				const e = all_day ? `${all_day_date}T23:59` : end_dt;
 				if (isEdit) {
-					await updateEvent({ id, title, start_dt: s, end_dt: e, memo, repeat_type });
+					await updateEvent({ id, title, start_dt: s, end_dt: e, memo, repeat_type, color });
 				} else {
-					await createEvent({ id, title, start_dt: s, end_dt: e, memo, repeat_type });
+					await createEvent({ id, title, start_dt: s, end_dt: e, memo, repeat_type, color });
 				}
 			}
 			sessionStorage.removeItem('calendar_return_date');
@@ -235,6 +239,8 @@
 				></textarea>
 			</div>
 		{/if}
+
+		<ColorPicker bind:value={color} type={mode} />
 
 		<div>
 			<label class="block text-sm font-medium text-gray-700 mb-1" for="repeat">繰り返し設定</label>

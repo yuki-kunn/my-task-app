@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Trash2, Edit, Calendar as Memo, RotateCw } from 'lucide-svelte';
 	import { getDeadlineStyle, formatDeadline } from '$lib/deadline';
+	import { TASK_COLOR_CLASSES } from '$lib/colors';
 	import type { Task } from '$lib/types';
 
 	const REPEAT_LABEL: Record<string, string> = {
@@ -20,11 +21,16 @@
 		onEdit: (task: Task) => void;
 		onDelete: (id: string) => void;
 	} = $props();
+
+	const colorClass = $derived(
+		task.color && TASK_COLOR_CLASSES[task.color] ? TASK_COLOR_CLASSES[task.color] : ''
+	);
 </script>
 
 <div
-	style={getDeadlineStyle(task.deadline, task.is_completed)}
-	class="flex items-center justify-between p-4 rounded-xl shadow-sm border border-gray-100 bg-white transition-all cursor-grab active:cursor-grabbing"
+	style={colorClass ? '' : getDeadlineStyle(task.deadline, task.is_completed)}
+	class="flex items-center justify-between p-4 rounded-xl shadow-sm border transition-all cursor-grab active:cursor-grabbing
+		{colorClass || 'border-gray-100 bg-white'}"
 >
 	<div class="flex items-center gap-3 flex-1 min-w-0">
 		<input

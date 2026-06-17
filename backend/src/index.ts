@@ -88,12 +88,13 @@ app.get('/api/tasks', async (c) => {
 });
 
 app.post('/api/tasks', async (c) => {
-  const { id, title, deadline, repeat_type, sort_order } = await c.req.json<{
+  const { id, title, deadline, repeat_type, sort_order, color } = await c.req.json<{
     id: string;
     title: string;
     deadline: string;
     repeat_type: RepeatType;
     sort_order?: number;
+    color?: string;
   }>();
 
   if (!id || !title?.trim() || !deadline) {
@@ -101,8 +102,8 @@ app.post('/api/tasks', async (c) => {
   }
 
   await pool.query(
-    'INSERT INTO tasks (id, title, deadline, repeat_type, sort_order) VALUES (?, ?, ?, ?, ?)',
-    [id, title.trim(), toMysqlDatetime(deadline), repeat_type ?? 'none', sort_order ?? 0]
+    'INSERT INTO tasks (id, title, deadline, repeat_type, sort_order, color) VALUES (?, ?, ?, ?, ?, ?)',
+    [id, title.trim(), toMysqlDatetime(deadline), repeat_type ?? 'none', sort_order ?? 0, color ?? null]
   );
   return c.json({ success: true });
 });
@@ -117,11 +118,12 @@ app.put('/api/tasks/reorder', async (c) => {
 
 app.put('/api/tasks/:id', async (c) => {
   const id = c.req.param('id');
-  const { title, deadline, repeat_type, is_completed } = await c.req.json<{
+  const { title, deadline, repeat_type, is_completed, color } = await c.req.json<{
     title: string;
     deadline: string;
     repeat_type: RepeatType;
     is_completed: boolean;
+    color?: string;
   }>();
 
   if (!title?.trim() || !deadline) {
@@ -129,8 +131,8 @@ app.put('/api/tasks/:id', async (c) => {
   }
 
   await pool.query(
-    'UPDATE tasks SET title = ?, deadline = ?, repeat_type = ?, is_completed = ?, reminder_sent_at = NULL WHERE id = ?',
-    [title.trim(), toMysqlDatetime(deadline), repeat_type ?? 'none', is_completed ? 1 : 0, id]
+    'UPDATE tasks SET title = ?, deadline = ?, repeat_type = ?, is_completed = ?, color = ?, reminder_sent_at = NULL WHERE id = ?',
+    [title.trim(), toMysqlDatetime(deadline), repeat_type ?? 'none', is_completed ? 1 : 0, color ?? null, id]
   );
 
   // When a repeating task is marked complete, schedule its next occurrence.
@@ -169,13 +171,14 @@ app.get('/api/events', async (c) => {
 });
 
 app.post('/api/events', async (c) => {
-  const { id, title, start_dt, end_dt, memo, repeat_type } = await c.req.json<{
+  const { id, title, start_dt, end_dt, memo, repeat_type, color } = await c.req.json<{
     id: string;
     title: string;
     start_dt: string;
     end_dt: string;
     memo?: string;
     repeat_type: RepeatType;
+    color?: string;
   }>();
 
   if (!id || !title?.trim() || !start_dt || !end_dt) {
@@ -183,20 +186,21 @@ app.post('/api/events', async (c) => {
   }
 
   await pool.query(
-    'INSERT INTO events (id, title, start_dt, end_dt, memo, repeat_type) VALUES (?, ?, ?, ?, ?, ?)',
-    [id, title.trim(), toMysqlDatetime(start_dt), toMysqlDatetime(end_dt), memo ?? null, repeat_type ?? 'none']
+    'INSERT INTO events (id, title, start_dt, end_dt, memo, repeat_type, color) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [id, title.trim(), toMysqlDatetime(start_dt), toMysqlDatetime(end_dt), memo ?? null, repeat_type ?? 'none', color ?? null]
   );
   return c.json({ success: true });
 });
 
 app.put('/api/events/:id', async (c) => {
   const id = c.req.param('id');
-  const { title, start_dt, end_dt, memo, repeat_type } = await c.req.json<{
+  const { title, start_dt, end_dt, memo, repeat_type, color } = await c.req.json<{
     title: string;
     start_dt: string;
     end_dt: string;
     memo?: string;
     repeat_type: RepeatType;
+    color?: string;
   }>();
 
   if (!title?.trim() || !start_dt || !end_dt) {
@@ -204,8 +208,8 @@ app.put('/api/events/:id', async (c) => {
   }
 
   await pool.query(
-    'UPDATE events SET title = ?, start_dt = ?, end_dt = ?, memo = ?, repeat_type = ?, reminder_sent_at = NULL WHERE id = ?',
-    [title.trim(), toMysqlDatetime(start_dt), toMysqlDatetime(end_dt), memo ?? null, repeat_type ?? 'none', id]
+    'UPDATE events SET title = ?, start_dt = ?, end_dt = ?, memo = ?, repeat_type = ?, color = ?, reminder_sent_at = NULL WHERE id = ?',
+    [title.trim(), toMysqlDatetime(start_dt), toMysqlDatetime(end_dt), memo ?? null, repeat_type ?? 'none', color ?? null, id]
   );
 
   return c.json({ success: true });

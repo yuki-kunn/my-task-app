@@ -1,6 +1,7 @@
 ﻿<script lang="ts">
 	import { Edit, Trash2, Clock, RotateCw, FileText } from 'lucide-svelte';
 	import { formatDeadline } from '$lib/deadline';
+	import { EVENT_COLOR_CLASSES } from '$lib/colors';
 	import type { Event } from '$lib/types';
 
 	const REPEAT_LABEL: Record<string, string> = {
@@ -18,9 +19,13 @@
 		onEdit: (event: Event) => void;
 		onDelete: (id: string) => void;
 	} = $props();
+
+	const colorClass = $derived(
+		event.color && EVENT_COLOR_CLASSES[event.color] ? EVENT_COLOR_CLASSES[event.color] : 'bg-violet-50 border-violet-100'
+	);
 </script>
 
-<div class="flex items-center justify-between p-4 rounded-xl shadow-sm border border-violet-100 bg-violet-50 transition-all">
+<div class="flex items-center justify-between p-4 rounded-xl shadow-sm border transition-all {colorClass}">
 	<div class="flex-1 min-w-0">
 		<p class="font-semibold text-gray-800 truncate">{event.title}</p>
 		<div class="flex items-center gap-3 mt-1 flex-wrap">
