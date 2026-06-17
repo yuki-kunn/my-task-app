@@ -5,7 +5,7 @@
 	import { ChevronLeft, ChevronRight, Plus, Clock, RotateCw, Edit, FileText } from 'lucide-svelte';
 	import { fetchTasks, fetchEvents, ApiError } from '$lib/api';
 	import { formatDeadline } from '$lib/deadline';
-	import { TASK_DOT_COLOR, EVENT_DOT_COLOR } from '$lib/colors';
+	import { TASK_DOT_COLOR, EVENT_DOT_COLOR, TASK_COLOR_CLASSES, EVENT_COLOR_CLASSES } from '$lib/colors';
 	import type { Task, Event } from '$lib/types';
 
 	let tasks: Task[] = $state([]);
@@ -162,12 +162,16 @@
 			{:else}
 				<div class="space-y-2 max-h-[400px] overflow-y-auto">
 					{#each filteredTasks as task}
-						<div class="p-3 bg-gray-50 rounded-lg border text-sm
+						<div class="p-3 rounded-lg border text-sm
+							{task.color && TASK_COLOR_CLASSES[task.color] ? TASK_COLOR_CLASSES[task.color] : 'bg-gray-50 border-gray-200'}
 							{task.is_completed ? 'opacity-60' : ''}">
 							<div class="flex items-start justify-between gap-2">
-								<p class="font-semibold text-gray-800 {task.is_completed ? 'line-through' : ''} flex-1 break-words">
-									{task.title}
-								</p>
+								<div class="flex items-start gap-1.5 flex-1 min-w-0">
+									<span class="mt-1 shrink-0 w-2.5 h-2.5 rounded-full {task.color && TASK_DOT_COLOR[task.color] ? TASK_DOT_COLOR[task.color] : 'bg-red-400'}"></span>
+									<p class="font-semibold text-gray-800 {task.is_completed ? 'line-through' : ''} break-words">
+										{task.title}
+									</p>
+								</div>
 								<button
 									onclick={() => editTask(task)}
 									class="shrink-0 p-1 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 rounded transition"
@@ -194,9 +198,13 @@
 					{/each}
 
 					{#each filteredEvents as event}
-						<div class="p-3 bg-violet-50 rounded-lg border border-violet-100 text-sm">
+						<div class="p-3 rounded-lg border text-sm
+							{event.color && EVENT_COLOR_CLASSES[event.color] ? EVENT_COLOR_CLASSES[event.color] : 'bg-violet-50 border-violet-100'}">
 							<div class="flex items-start justify-between gap-2">
-								<p class="font-semibold text-gray-800 flex-1 break-words">{event.title}</p>
+								<div class="flex items-start gap-1.5 flex-1 min-w-0">
+									<span class="mt-1 shrink-0 w-2.5 h-2.5 rounded-full {event.color && EVENT_DOT_COLOR[event.color] ? EVENT_DOT_COLOR[event.color] : 'bg-violet-400'}"></span>
+									<p class="font-semibold text-gray-800 break-words">{event.title}</p>
+								</div>
 								<button
 									onclick={() => editEvent(event)}
 									class="shrink-0 p-1 text-violet-600 hover:text-violet-700 hover:bg-violet-200 rounded transition"
