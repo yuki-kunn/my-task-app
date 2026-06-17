@@ -1,7 +1,7 @@
 ﻿<script lang="ts">
 	import { Edit, Trash2, Clock, RotateCw, FileText } from 'lucide-svelte';
 	import { formatDeadline } from '$lib/deadline';
-	import { EVENT_COLOR_CLASSES } from '$lib/colors';
+	import { EVENT_COLOR_CLASSES, EVENT_DOT_COLOR } from '$lib/colors';
 	import type { Event } from '$lib/types';
 
 	const REPEAT_LABEL: Record<string, string> = {
@@ -21,13 +21,19 @@
 	} = $props();
 
 	const colorClass = $derived(
-		event.color && EVENT_COLOR_CLASSES[event.color] ? EVENT_COLOR_CLASSES[event.color] : 'bg-violet-50 border-violet-100'
+		event.color && EVENT_COLOR_CLASSES[event.color] ? EVENT_COLOR_CLASSES[event.color] : ''
+	);
+	const dotClass = $derived(
+		event.color && EVENT_DOT_COLOR[event.color] ? EVENT_DOT_COLOR[event.color] : 'bg-violet-400'
 	);
 </script>
 
-<div class="flex items-center justify-between p-4 rounded-xl shadow-sm border transition-all {colorClass}">
+<div class="flex items-center justify-between p-4 rounded-xl shadow-sm border border-violet-100 bg-violet-50 transition-all {colorClass}">
 	<div class="flex-1 min-w-0">
-		<p class="font-semibold text-gray-800 truncate">{event.title}</p>
+		<p class="font-semibold text-gray-800 truncate flex items-center gap-1.5">
+			<span class="shrink-0 w-2.5 h-2.5 rounded-full {dotClass}"></span>
+			{event.title}
+		</p>
 		<div class="flex items-center gap-3 mt-1 flex-wrap">
 			<span class="flex items-center gap-1 text-xs text-gray-500">
 				<Clock size={11} />

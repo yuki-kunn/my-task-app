@@ -1,23 +1,22 @@
-﻿// Maps a color key to Tailwind CSS classes for task cards (white base)
+﻿// Left border accent color for task/event cards (used alongside deadline style)
 export const TASK_COLOR_CLASSES: Record<string, string> = {
-	red:    'bg-red-100 border-red-200',
-	orange: 'bg-orange-100 border-orange-200',
-	yellow: 'bg-yellow-100 border-yellow-200',
-	green:  'bg-green-100 border-green-200',
-	blue:   'bg-blue-100 border-blue-200',
-	purple: 'bg-purple-100 border-purple-200',
-	pink:   'bg-pink-100 border-pink-200',
+	red:    'border-l-4 border-l-red-400',
+	orange: 'border-l-4 border-l-orange-400',
+	yellow: 'border-l-4 border-l-yellow-400',
+	green:  'border-l-4 border-l-green-400',
+	blue:   'border-l-4 border-l-blue-400',
+	purple: 'border-l-4 border-l-purple-400',
+	pink:   'border-l-4 border-l-pink-400',
 };
 
-// Maps a color key to Tailwind CSS classes for event cards (violet base)
 export const EVENT_COLOR_CLASSES: Record<string, string> = {
-	red:    'bg-red-100 border-red-200',
-	orange: 'bg-orange-100 border-orange-200',
-	yellow: 'bg-yellow-100 border-yellow-200',
-	green:  'bg-green-100 border-green-200',
-	blue:   'bg-blue-100 border-blue-200',
-	indigo: 'bg-indigo-100 border-indigo-200',
-	pink:   'bg-pink-100 border-pink-200',
+	red:    'border-l-4 border-l-red-400',
+	orange: 'border-l-4 border-l-orange-400',
+	yellow: 'border-l-4 border-l-yellow-400',
+	green:  'border-l-4 border-l-green-400',
+	blue:   'border-l-4 border-l-blue-400',
+	indigo: 'border-l-4 border-l-indigo-400',
+	pink:   'border-l-4 border-l-pink-400',
 };
 
 // Dot colors for calendar indicators

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Trash2, Edit, Calendar as Memo, RotateCw } from 'lucide-svelte';
 	import { getDeadlineStyle, formatDeadline } from '$lib/deadline';
-	import { TASK_COLOR_CLASSES } from '$lib/colors';
+	import { TASK_COLOR_CLASSES, TASK_DOT_COLOR } from '$lib/colors';
 	import type { Task } from '$lib/types';
 
 	const REPEAT_LABEL: Record<string, string> = {
@@ -25,12 +25,15 @@
 	const colorClass = $derived(
 		task.color && TASK_COLOR_CLASSES[task.color] ? TASK_COLOR_CLASSES[task.color] : ''
 	);
+	const dotClass = $derived(
+		task.color && TASK_DOT_COLOR[task.color] ? TASK_DOT_COLOR[task.color] : ''
+	);
 </script>
 
 <div
-	style={colorClass ? '' : getDeadlineStyle(task.deadline, task.is_completed)}
-	class="flex items-center justify-between p-4 rounded-xl shadow-sm border transition-all cursor-grab active:cursor-grabbing
-		{colorClass || 'border-gray-100 bg-white'}"
+	style={getDeadlineStyle(task.deadline, task.is_completed)}
+	class="flex items-center justify-between p-4 rounded-xl shadow-sm border border-gray-100 transition-all cursor-grab active:cursor-grabbing
+		{colorClass}"
 >
 	<div class="flex items-center gap-3 flex-1 min-w-0">
 		<input
@@ -41,7 +44,10 @@
 			aria-label="完了にする"
 		/>
 		<div class="truncate flex-1">
-			<p class="font-semibold text-gray-800 truncate {task.is_completed ? 'line-through' : ''}">
+			<p class="font-semibold text-gray-800 truncate {task.is_completed ? 'line-through' : ''} flex items-center gap-1.5">
+				{#if dotClass}
+					<span class="shrink-0 w-2.5 h-2.5 rounded-full {dotClass}"></span>
+				{/if}
 				{task.title}
 			</p>
 			<p class="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
