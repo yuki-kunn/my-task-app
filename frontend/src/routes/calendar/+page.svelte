@@ -1,13 +1,14 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { ChevronLeft, ChevronRight, Plus, Clock, RotateCw, Edit } from 'lucide-svelte';
-	import { fetchTasks, ApiError } from '$lib/api';
+	import { ChevronLeft, ChevronRight, Plus, Clock, RotateCw, Edit, FileText } from 'lucide-svelte';
+	import { fetchTasks, fetchEvents, ApiError } from '$lib/api';
 	import { formatDeadline } from '$lib/deadline';
-	import type { Task } from '$lib/types';
+	import type { Task, Event } from '$lib/types';
 
 	let tasks: Task[] = $state([]);
+	let events: Event[] = $state([]);
 	let currentYear = $state(0);
 	let currentMonth = $state(0);
 	let selectedDateStr = $state('');
@@ -15,7 +16,6 @@
 	let errorMsg = $state('');
 
 	onMount(async () => {
-		// カレンダーから編集画面に遷移して戻ってきた際、?date= で選択日付を復元する
 		const dateParam = page.url.searchParams.get('date');
 		const now = new Date();
 		const target = dateParam ? new Date(`${dateParam}T00:00:00`) : now;
@@ -23,16 +23,16 @@
 		currentYear = target.getFullYear();
 		currentMonth = target.getMonth();
 		selectedDateStr = dateParam ?? toDateStr(now);
-		await loadTasks();
+		await loadData();
 	});
 
-	async function loadTasks() {
+	async function loadData() {
 		loading = true;
 		errorMsg = '';
 		try {
-			tasks = await fetchTasks();
+			[tasks, events] = await Promise.all([fetchTasks(), fetchEvents()]);
 		} catch (err) {
-			errorMsg = err instanceof ApiError ? err.message : 'タスクの取得に失敗しました';
+			errorMsg = err instanceof ApiError ? err.message : 'データの取得に失敗しました';
 		} finally {
 			loading = false;
 		}
@@ -51,7 +51,6 @@
 		currentMonth = date.getMonth();
 	}
 
-	// Leading blanks so the 1st lines up under its weekday (0 = Sunday).
 	const leadingBlanks = $derived(new Date(currentYear, currentMonth, 1).getDay());
 	const daysInMonth = $derived(
 		Array.from({ length: new Date(currentYear, currentMonth + 1, 0).getDate() }, (_, i) => i + 1)
@@ -68,6 +67,11 @@
 		return tasks.some((t) => t.deadline.startsWith(target));
 	}
 
+	function hasEventOnDay(day: number) {
+		const target = dateStrFor(day);
+		return events.some((e) => e.start_dt.startsWith(target));
+	}
+
 	function handleCreateFromCalendar() {
 		sessionStorage.setItem('calendar_target_date', selectedDateStr);
 		sessionStorage.setItem('calendar_return_date', selectedDateStr);
@@ -80,6 +84,12 @@
 		goto('/task');
 	}
 
+	function editEvent(event: Event) {
+		sessionStorage.setItem('edit_event', JSON.stringify(event));
+		sessionStorage.setItem('calendar_return_date', selectedDateStr);
+		goto('/task');
+	}
+
 	const REPEAT_LABEL: Record<string, string> = {
 		daily: '毎日',
 		weekly: '毎週',
@@ -87,6 +97,7 @@
 	};
 
 	const filteredTasks = $derived(tasks.filter((t) => t.deadline.startsWith(selectedDateStr)));
+	const filteredEvents = $derived(events.filter((e) => e.start_dt.startsWith(selectedDateStr)));
 </script>
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -116,9 +127,14 @@
 						{selectedDateStr === dateStrFor(day) ? 'bg-indigo-600 text-white' : 'hover:bg-indigo-50 bg-gray-50 text-gray-700'}"
 				>
 					{day}
-					{#if hasTaskOnDay(day)}
-						<span class="w-1.5 h-1.5 rounded-full bg-red-400 absolute bottom-1"></span>
-					{/if}
+					<span class="flex gap-0.5 absolute bottom-1">
+						{#if hasTaskOnDay(day)}
+							<span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+						{/if}
+						{#if hasEventOnDay(day)}
+							<span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+						{/if}
+					</span>
 				</button>
 			{/each}
 		</div>
@@ -127,12 +143,12 @@
 	<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
 		<div>
 			<div class="flex justify-between items-center border-b pb-2 mb-3">
-				<h3 class="font-bold text-gray-800">{selectedDateStr} のタスク</h3>
+				<h3 class="font-bold text-gray-800">{selectedDateStr}</h3>
 				<button
 					onclick={handleCreateFromCalendar}
 					class="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
-					title="この日にタスクを作成"
-					aria-label="この日にタスクを作成"
+					title="この日に追加"
+					aria-label="この日に追加"
 				>
 					<Plus size={20} />
 				</button>
@@ -143,7 +159,7 @@
 			{:else if loading}
 				<p class="text-gray-400 text-sm text-center py-6">読み込み中...</p>
 			{:else}
-				<div class="space-y-2 max-h-[360px] overflow-y-auto">
+				<div class="space-y-2 max-h-[400px] overflow-y-auto">
 					{#each filteredTasks as task}
 						<div class="p-3 bg-gray-50 rounded-lg border text-sm group relative
 							{task.is_completed ? 'opacity-60' : ''}">
@@ -174,9 +190,42 @@
 								{/if}
 							</div>
 						</div>
-					{:else}
-						<p class="text-gray-400 text-sm text-center py-6">この日のタスクはありません</p>
 					{/each}
+
+					{#each filteredEvents as event}
+						<div class="p-3 bg-violet-50 rounded-lg border border-violet-100 text-sm group relative">
+							<div class="flex items-start justify-between gap-2">
+								<p class="font-semibold text-gray-800">{event.title}</p>
+								<button
+									onclick={() => editEvent(event)}
+									class="shrink-0 p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+									aria-label="編集"
+								>
+									<Edit size={14} />
+								</button>
+							</div>
+							<div class="flex items-center gap-3 mt-1.5 flex-wrap">
+								<span class="flex items-center gap-1 text-xs text-gray-500">
+									<Clock size={11} />
+									{formatDeadline(event.start_dt)} 〜 {formatDeadline(event.end_dt)}
+								</span>
+								{#if event.repeat_type !== 'none'}
+									<span class="flex items-center gap-0.5 text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">
+										<RotateCw size={9} />{REPEAT_LABEL[event.repeat_type]}
+									</span>
+								{/if}
+								{#if event.memo}
+									<span class="flex items-center gap-0.5 text-[10px] text-gray-400">
+										<FileText size={9} />{event.memo}
+									</span>
+								{/if}
+							</div>
+						</div>
+					{/each}
+
+					{#if filteredTasks.length === 0 && filteredEvents.length === 0}
+						<p class="text-gray-400 text-sm text-center py-6">この日のタスク・予定はありません</p>
+					{/if}
 				</div>
 			{/if}
 		</div>

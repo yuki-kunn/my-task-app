@@ -17,3 +17,15 @@ export function nextDeadline(deadline: Date, repeatType: RepeatType): Date | nul
       return null;
   }
 }
+
+/** Shifts both start_dt and end_dt of a repeating event to the next occurrence. */
+export function nextEvent(
+  startDt: Date,
+  endDt: Date,
+  repeatType: RepeatType
+): { start: Date; end: Date } | null {
+  const duration = endDt.getTime() - startDt.getTime();
+  const nextStart = nextDeadline(startDt, repeatType);
+  if (!nextStart) return null;
+  return { start: nextStart, end: new Date(nextStart.getTime() + duration) };
+}

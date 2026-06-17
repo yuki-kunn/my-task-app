@@ -41,10 +41,23 @@ export async function initDB() {
 
     // CREATE TABLE IF NOT EXISTS doesn't alter existing tables, so add columns
     // introduced after the initial release if they're missing.
-    const [columns] = await connection.query<any[]>(`SHOW COLUMNS FROM tasks LIKE 'reminder_sent_at'`);
-    if (columns.length === 0) {
+    const [reminderCol] = await connection.query<any[]>(`SHOW COLUMNS FROM tasks LIKE 'reminder_sent_at'`);
+    if (reminderCol.length === 0) {
       await connection.query(`ALTER TABLE tasks ADD COLUMN reminder_sent_at DATETIME NULL`);
     }
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS events (
+        id VARCHAR(36) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        start_dt DATETIME NOT NULL,
+        end_dt DATETIME NOT NULL,
+        memo TEXT NULL,
+        repeat_type VARCHAR(20) NOT NULL DEFAULT 'none',
+        reminder_sent_at DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS push_subscriptions (

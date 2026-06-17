@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { CheckSquare, Calendar, Settings, LogOut } from 'lucide-svelte';
+	import { CheckSquare, Calendar, Settings, LogOut, Sparkles } from 'lucide-svelte';
 	import { getToken, clearToken } from '$lib/api';
 
 	let { children } = $props();
@@ -42,6 +42,9 @@
 				<a href="/calendar" class="flex items-center gap-1 hover:text-indigo-200">
 					<Calendar size={18} /> カレンダー
 				</a>
+				<a href="/ai" class="flex items-center gap-1 hover:text-indigo-200">
+					<Sparkles size={18} /> AI登録
+				</a>
 				<a href="/settings" class="flex items-center gap-1 hover:text-indigo-200">
 					<Settings size={18} /> 設定
 				</a>
@@ -70,6 +73,9 @@
 			</a>
 			<a href="/calendar" class="flex flex-col items-center text-xs text-gray-600 hover:text-indigo-600">
 				<Calendar size={22} class="mb-0.5" /> カレンダー
+			</a>
+			<a href="/ai" class="flex flex-col items-center text-xs text-gray-600 hover:text-indigo-600">
+				<Sparkles size={22} class="mb-0.5" /> AI
 			</a>
 			<a href="/settings" class="flex flex-col items-center text-xs text-gray-600 hover:text-indigo-600">
 				<Settings size={22} class="mb-0.5" /> 設定

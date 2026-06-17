@@ -3,9 +3,10 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import bcrypt from 'bcryptjs';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { pool, initDB } from './db.js';
 import { authMiddleware, createSessionToken } from './auth.js';
-import { nextDeadline, type RepeatType } from './repeat.js';
+import { nextDeadline, nextEvent, type RepeatType } from './repeat.js';
 import { startScheduler } from './scheduler.js';
 import { isPushConfigured } from './push.js';
 
@@ -36,6 +37,11 @@ function parseDeadline(value: string | Date) {
 
 function toMysqlDatetime(value: string | Date) {
   return parseDeadline(value).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function jstNowAsDatetime() {
+  const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  return new Date(Date.now() + JST_OFFSET_MS).toISOString().slice(0, 19).replace('T', ' ');
 }
 
 // --- Public routes ---------------------------------------------------------
@@ -145,6 +151,152 @@ app.delete('/api/tasks/:id', async (c) => {
   const id = c.req.param('id');
   await pool.query('DELETE FROM tasks WHERE id = ?', [id]);
   return c.json({ success: true });
+});
+
+// --- Events ------------------------------------------------------------------
+
+app.use('/api/events', authMiddleware);
+app.use('/api/events/*', authMiddleware);
+
+app.get('/api/events', async (c) => {
+  const now = jstNowAsDatetime();
+  // Hide events whose end_dt has passed (auto-hide)
+  const [rows] = await pool.query(
+    'SELECT * FROM events WHERE end_dt >= ? ORDER BY start_dt ASC',
+    [now]
+  );
+  return c.json(rows);
+});
+
+app.post('/api/events', async (c) => {
+  const { id, title, start_dt, end_dt, memo, repeat_type } = await c.req.json<{
+    id: string;
+    title: string;
+    start_dt: string;
+    end_dt: string;
+    memo?: string;
+    repeat_type: RepeatType;
+  }>();
+
+  if (!id || !title?.trim() || !start_dt || !end_dt) {
+    return c.json({ success: false, message: 'タイトル・開始日時・終了日時は必須です' }, 400);
+  }
+
+  await pool.query(
+    'INSERT INTO events (id, title, start_dt, end_dt, memo, repeat_type) VALUES (?, ?, ?, ?, ?, ?)',
+    [id, title.trim(), toMysqlDatetime(start_dt), toMysqlDatetime(end_dt), memo ?? null, repeat_type ?? 'none']
+  );
+  return c.json({ success: true });
+});
+
+app.put('/api/events/:id', async (c) => {
+  const id = c.req.param('id');
+  const { title, start_dt, end_dt, memo, repeat_type } = await c.req.json<{
+    title: string;
+    start_dt: string;
+    end_dt: string;
+    memo?: string;
+    repeat_type: RepeatType;
+  }>();
+
+  if (!title?.trim() || !start_dt || !end_dt) {
+    return c.json({ success: false, message: 'タイトル・開始日時・終了日時は必須です' }, 400);
+  }
+
+  await pool.query(
+    'UPDATE events SET title = ?, start_dt = ?, end_dt = ?, memo = ?, repeat_type = ?, reminder_sent_at = NULL WHERE id = ?',
+    [title.trim(), toMysqlDatetime(start_dt), toMysqlDatetime(end_dt), memo ?? null, repeat_type ?? 'none', id]
+  );
+
+  return c.json({ success: true });
+});
+
+app.delete('/api/events/:id', async (c) => {
+  const id = c.req.param('id');
+  await pool.query('DELETE FROM events WHERE id = ?', [id]);
+  return c.json({ success: true });
+});
+
+// Called when end_dt of a repeating event passes — generates the next occurrence.
+app.post('/api/events/:id/complete', authMiddleware, async (c) => {
+  const id = c.req.param('id');
+  const [rows] = await pool.query<any[]>('SELECT * FROM events WHERE id = ?', [id]);
+  const event = rows[0];
+  if (!event) return c.json({ success: false, message: 'Not found' }, 404);
+
+  if (event.repeat_type && event.repeat_type !== 'none') {
+    const next = nextEvent(parseDeadline(event.start_dt), parseDeadline(event.end_dt), event.repeat_type);
+    if (next) {
+      await pool.query(
+        'INSERT INTO events (id, title, start_dt, end_dt, memo, repeat_type) VALUES (?, ?, ?, ?, ?, ?)',
+        [crypto.randomUUID(), event.title, toMysqlDatetime(next.start), toMysqlDatetime(next.end), event.memo, event.repeat_type]
+      );
+    }
+  }
+  await pool.query('DELETE FROM events WHERE id = ?', [id]);
+  return c.json({ success: true });
+});
+
+// --- AI Parse ----------------------------------------------------------------
+
+app.use('/api/ai/*', authMiddleware);
+
+app.post('/api/ai/parse', async (c) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return c.json({ success: false, message: 'GEMINI_API_KEY が設定されていません' }, 500);
+  }
+
+  const { text, mode } = await c.req.json<{ text: string; mode: 'simple' | 'organize' }>();
+  if (!text?.trim()) {
+    return c.json({ success: false, message: 'テキストを入力してください' }, 400);
+  }
+
+  const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const nowJst = new Date(Date.now() + JST_OFFSET_MS).toISOString().slice(0, 16).replace('T', ' ');
+
+  const systemPrompt = mode === 'organize'
+    ? `あなたはタスク・予定管理AIです。ユーザーの入力から複数のタスクまたは予定を抽出し、整理してJSON配列で返してください。
+現在の日時（JST）: ${nowJst}
+各アイテムは以下の形式で返すこと:
+[
+  {
+    "type": "task" | "event",
+    "title": "タイトル",
+    "deadline": "YYYY-MM-DDTHH:MM" (type=taskの場合),
+    "start_dt": "YYYY-MM-DDTHH:MM" (type=eventの場合),
+    "end_dt": "YYYY-MM-DDTHH:MM" (type=eventの場合),
+    "memo": "メモ（任意）",
+    "repeat_type": "none" | "daily" | "weekly" | "yearly"
+  }
+]
+日時が不明な場合は合理的に推測すること。必ずJSON配列のみ返すこと。`
+    : `あなたはタスク・予定管理AIです。ユーザーの入力から1つのタスクまたは予定を抽出してJSON形式で返してください。
+現在の日時（JST）: ${nowJst}
+以下の形式で返すこと:
+{
+  "type": "task" | "event",
+  "title": "タイトル",
+  "deadline": "YYYY-MM-DDTHH:MM" (type=taskの場合),
+  "start_dt": "YYYY-MM-DDTHH:MM" (type=eventの場合),
+  "end_dt": "YYYY-MM-DDTHH:MM" (type=eventの場合),
+  "memo": "メモ（任意）",
+  "repeat_type": "none" | "daily" | "weekly" | "yearly"
+}
+必ずJSONオブジェクトのみ返すこと。`;
+
+  try {
+    const genai = new GoogleGenerativeAI(apiKey);
+    const model = genai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const result = await model.generateContent(`${systemPrompt}\n\nユーザー入力: ${text}`);
+    const raw = result.response.text().trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    const parsed = JSON.parse(raw);
+    const items = Array.isArray(parsed) ? parsed : [parsed];
+    return c.json({ success: true, items });
+  } catch (err) {
+    console.error('Gemini parse error:', err);
+    return c.json({ success: false, message: 'AI解析に失敗しました' }, 500);
+  }
 });
 
 // --- Push notifications ------------------------------------------------------

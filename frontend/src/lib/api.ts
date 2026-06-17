@@ -1,5 +1,5 @@
 import { goto } from '$app/navigation';
-import type { Task } from './types';
+import type { Task, Event, AiItem } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 const TOKEN_KEY = 'task_token';
@@ -92,6 +92,35 @@ export function reorderTasks(orders: { id: string; sort_order: number }[]) {
 	return request<{ success: boolean }>('/tasks/reorder', {
 		method: 'PUT',
 		body: JSON.stringify({ orders })
+	});
+}
+
+export function fetchEvents() {
+	return request<Event[]>('/events');
+}
+
+export function createEvent(event: Omit<Event, 'id'> & { id: string }) {
+	return request<{ success: boolean }>('/events', {
+		method: 'POST',
+		body: JSON.stringify(event)
+	});
+}
+
+export function updateEvent(event: Event) {
+	return request<{ success: boolean }>(`/events/${event.id}`, {
+		method: 'PUT',
+		body: JSON.stringify(event)
+	});
+}
+
+export function deleteEvent(id: string) {
+	return request<{ success: boolean }>(`/events/${id}`, { method: 'DELETE' });
+}
+
+export function parseAiText(text: string, mode: 'simple' | 'organize') {
+	return request<{ success: boolean; items: AiItem[] }>('/ai/parse', {
+		method: 'POST',
+		body: JSON.stringify({ text, mode })
 	});
 }
 
