@@ -157,7 +157,7 @@
 					id="dl"
 					type="datetime-local"
 					bind:value={deadline}
-					class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+					class="w-full box-border px-2 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 					required
 				/>
 			</div>
