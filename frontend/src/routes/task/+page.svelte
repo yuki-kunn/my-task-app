@@ -11,10 +11,16 @@
 	let isEdit = $state(false);
 	let errorMsg = $state('');
 	let saving = $state(false);
+	let returnTo = $state('/dashboard');
 
 	onMount(() => {
 		const editData = sessionStorage.getItem('edit_task');
 		const queryDate = sessionStorage.getItem('calendar_target_date');
+		const calendarReturnDate = sessionStorage.getItem('calendar_return_date');
+
+		if (calendarReturnDate) {
+			returnTo = `/calendar?date=${calendarReturnDate}`;
+		}
 
 		if (editData) {
 			const task: Task = JSON.parse(editData);
@@ -51,7 +57,8 @@
 			} else {
 				await createTask({ id, title, deadline, repeat_type, is_completed: false });
 			}
-			await goto('/dashboard');
+			sessionStorage.removeItem('calendar_return_date');
+			await goto(returnTo);
 		} catch (err) {
 			errorMsg = err instanceof ApiError ? err.message : '保存に失敗しました';
 		} finally {
@@ -110,7 +117,7 @@
 		<div class="flex gap-3 pt-4">
 			<button
 				type="button"
-				onclick={() => goto('/dashboard')}
+				onclick={() => { sessionStorage.removeItem('calendar_return_date'); goto(returnTo); }}
 				class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-200 transition"
 			>
 				キャンセル

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { ChevronLeft, ChevronRight, Plus, Clock, RotateCw, Edit } from 'lucide-svelte';
 	import { fetchTasks, ApiError } from '$lib/api';
 	import { formatDeadline } from '$lib/deadline';
@@ -14,10 +15,14 @@
 	let errorMsg = $state('');
 
 	onMount(async () => {
+		// カレンダーから編集画面に遷移して戻ってきた際、?date= で選択日付を復元する
+		const dateParam = page.url.searchParams.get('date');
 		const now = new Date();
-		currentYear = now.getFullYear();
-		currentMonth = now.getMonth();
-		selectedDateStr = toDateStr(now);
+		const target = dateParam ? new Date(`${dateParam}T00:00:00`) : now;
+
+		currentYear = target.getFullYear();
+		currentMonth = target.getMonth();
+		selectedDateStr = dateParam ?? toDateStr(now);
 		await loadTasks();
 	});
 
@@ -65,11 +70,13 @@
 
 	function handleCreateFromCalendar() {
 		sessionStorage.setItem('calendar_target_date', selectedDateStr);
+		sessionStorage.setItem('calendar_return_date', selectedDateStr);
 		goto('/task');
 	}
 
 	function editTask(task: Task) {
 		sessionStorage.setItem('edit_task', JSON.stringify(task));
+		sessionStorage.setItem('calendar_return_date', selectedDateStr);
 		goto('/task');
 	}
 
