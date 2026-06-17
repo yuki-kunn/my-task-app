@@ -109,7 +109,7 @@
 	}
 </script>
 
-<div class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow-sm border border-gray-100 mt-6">
+<div class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow-sm border border-gray-100 mt-6 overflow-hidden">
 	<h2 class="text-xl font-bold text-gray-800 mb-4">
 		{isEdit ? (mode === 'task' ? 'タスクを編集' : '予定を編集') : '新規作成'}
 	</h2>
@@ -169,7 +169,7 @@
 						id="start_dt"
 						type="datetime-local"
 						bind:value={start_dt}
-						class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:outline-none"
+						class="w-full box-border px-2 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:outline-none"
 						required
 					/>
 				</div>
@@ -179,7 +179,7 @@
 						id="end_dt"
 						type="datetime-local"
 						bind:value={end_dt}
-						class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:outline-none"
+						class="w-full box-border px-2 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:outline-none"
 						required
 					/>
 				</div>
