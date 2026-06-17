@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { ChevronLeft, ChevronRight, Plus } from 'lucide-svelte';
+	import { ChevronLeft, ChevronRight, Plus, Clock, RotateCw, Edit } from 'lucide-svelte';
 	import { fetchTasks, ApiError } from '$lib/api';
+	import { formatDeadline } from '$lib/deadline';
 	import type { Task } from '$lib/types';
 
 	let tasks: Task[] = $state([]);
@@ -67,6 +68,17 @@
 		goto('/task');
 	}
 
+	function editTask(task: Task) {
+		sessionStorage.setItem('edit_task', JSON.stringify(task));
+		goto('/task');
+	}
+
+	const REPEAT_LABEL: Record<string, string> = {
+		daily: '毎日',
+		weekly: '毎週',
+		yearly: '毎年'
+	};
+
 	const filteredTasks = $derived(tasks.filter((t) => t.deadline.startsWith(selectedDateStr)));
 </script>
 
@@ -124,14 +136,36 @@
 			{:else if loading}
 				<p class="text-gray-400 text-sm text-center py-6">読み込み中...</p>
 			{:else}
-				<div class="space-y-2 max-h-[300px] overflow-y-auto">
+				<div class="space-y-2 max-h-[360px] overflow-y-auto">
 					{#each filteredTasks as task}
-						<div
-							class="p-2.5 bg-gray-50 rounded-lg border text-sm {task.is_completed
-								? 'line-through text-gray-400'
-								: 'text-gray-700'}"
-						>
-							{task.title}
+						<div class="p-3 bg-gray-50 rounded-lg border text-sm group relative
+							{task.is_completed ? 'opacity-60' : ''}">
+							<div class="flex items-start justify-between gap-2">
+								<p class="font-semibold text-gray-800 {task.is_completed ? 'line-through' : ''}">
+									{task.title}
+								</p>
+								<button
+									onclick={() => editTask(task)}
+									class="shrink-0 p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+									aria-label="編集"
+								>
+									<Edit size={14} />
+								</button>
+							</div>
+							<div class="flex items-center gap-3 mt-1.5 flex-wrap">
+								<span class="flex items-center gap-1 text-xs text-gray-500">
+									<Clock size={11} />
+									{formatDeadline(task.deadline)}
+								</span>
+								{#if task.repeat_type !== 'none'}
+									<span class="flex items-center gap-0.5 text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">
+										<RotateCw size={9} />{REPEAT_LABEL[task.repeat_type]}
+									</span>
+								{/if}
+								{#if task.is_completed}
+									<span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">完了</span>
+								{/if}
+							</div>
 						</div>
 					{:else}
 						<p class="text-gray-400 text-sm text-center py-6">この日のタスクはありません</p>
