@@ -161,18 +161,18 @@
 			{:else}
 				<div class="space-y-2 max-h-[400px] overflow-y-auto">
 					{#each filteredTasks as task}
-						<div class="p-3 bg-gray-50 rounded-lg border text-sm group relative
+						<div class="p-3 bg-gray-50 rounded-lg border text-sm
 							{task.is_completed ? 'opacity-60' : ''}">
 							<div class="flex items-start justify-between gap-2">
-								<p class="font-semibold text-gray-800 {task.is_completed ? 'line-through' : ''}">
+								<p class="font-semibold text-gray-800 {task.is_completed ? 'line-through' : ''} flex-1 break-words">
 									{task.title}
 								</p>
 								<button
 									onclick={() => editTask(task)}
-									class="shrink-0 p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+									class="shrink-0 p-1 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 rounded transition"
 									aria-label="編集"
 								>
-									<Edit size={14} />
+									<Edit size={16} />
 								</button>
 							</div>
 							<div class="flex items-center gap-3 mt-1.5 flex-wrap">
@@ -193,15 +193,15 @@
 					{/each}
 
 					{#each filteredEvents as event}
-						<div class="p-3 bg-violet-50 rounded-lg border border-violet-100 text-sm group relative">
+						<div class="p-3 bg-violet-50 rounded-lg border border-violet-100 text-sm">
 							<div class="flex items-start justify-between gap-2">
-								<p class="font-semibold text-gray-800">{event.title}</p>
+								<p class="font-semibold text-gray-800 flex-1 break-words">{event.title}</p>
 								<button
 									onclick={() => editEvent(event)}
-									class="shrink-0 p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+									class="shrink-0 p-1 text-violet-600 hover:text-violet-700 hover:bg-violet-200 rounded transition"
 									aria-label="編集"
 								>
-									<Edit size={14} />
+									<Edit size={16} />
 								</button>
 							</div>
 							<div class="flex items-center gap-3 mt-1.5 flex-wrap">
