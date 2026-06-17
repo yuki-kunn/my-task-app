@@ -12,6 +12,8 @@
 	let deadline = $state('');
 	let start_dt = $state('');
 	let end_dt = $state('');
+	let all_day = $state(false);
+	let all_day_date = $state('');
 	let memo = $state('');
 	let repeat_type = $state<RepeatType>('none');
 	let isEdit = $state(false);
@@ -45,8 +47,16 @@
 			mode = 'event';
 			id = event.id;
 			title = event.title;
-			start_dt = new Date(event.start_dt).toISOString().slice(0, 16);
-			end_dt = new Date(event.end_dt).toISOString().slice(0, 16);
+			const s = new Date(event.start_dt).toISOString().slice(0, 16);
+			const e = new Date(event.end_dt).toISOString().slice(0, 16);
+			// 終日判定: 開始が00:00で終了が23:59なら終日
+			if (s.endsWith('T00:00') && e.endsWith('T23:59')) {
+				all_day = true;
+				all_day_date = s.slice(0, 10);
+			} else {
+				start_dt = s;
+				end_dt = e;
+			}
 			memo = event.memo ?? '';
 			repeat_type = event.repeat_type;
 			isEdit = true;
@@ -57,12 +67,14 @@
 				deadline = `${queryDate}T12:00`;
 				start_dt = `${queryDate}T10:00`;
 				end_dt = `${queryDate}T11:00`;
+				all_day_date = queryDate;
 				sessionStorage.removeItem('calendar_target_date');
 			} else {
 				const jstPlusOneHour = new Date(Date.now() + JST_OFFSET_MS + 60 * 60 * 1000);
 				const base = jstPlusOneHour.toISOString().slice(0, 16);
 				deadline = base;
 				start_dt = base;
+				all_day_date = base.slice(0, 10);
 				const jstPlusTwoHours = new Date(Date.now() + JST_OFFSET_MS + 2 * 60 * 60 * 1000);
 				end_dt = jstPlusTwoHours.toISOString().slice(0, 16);
 			}
@@ -78,7 +90,11 @@
 			errorMsg = '締め切り日時を入力してください';
 			return;
 		}
-		if (mode === 'event' && (!start_dt || !end_dt)) {
+		if (mode === 'event' && all_day && !all_day_date) {
+			errorMsg = '日付を入力してください';
+			return;
+		}
+		if (mode === 'event' && !all_day && (!start_dt || !end_dt)) {
 			errorMsg = '開始・終了日時を入力してください';
 			return;
 		}
@@ -93,10 +109,12 @@
 					await createTask({ id, title, deadline, repeat_type, is_completed: false });
 				}
 			} else {
+				const s = all_day ? `${all_day_date}T00:00` : start_dt;
+				const e = all_day ? `${all_day_date}T23:59` : end_dt;
 				if (isEdit) {
-					await updateEvent({ id, title, start_dt, end_dt, memo, repeat_type });
+					await updateEvent({ id, title, start_dt: s, end_dt: e, memo, repeat_type });
 				} else {
-					await createEvent({ id, title, start_dt, end_dt, memo, repeat_type });
+					await createEvent({ id, title, start_dt: s, end_dt: e, memo, repeat_type });
 				}
 			}
 			sessionStorage.removeItem('calendar_return_date');
@@ -162,28 +180,50 @@
 				/>
 			</div>
 		{:else}
-			<div class="space-y-3">
+			<label class="flex items-center gap-2 cursor-pointer select-none w-fit">
+				<input
+					type="checkbox"
+					bind:checked={all_day}
+					class="w-4 h-4 text-violet-600 rounded cursor-pointer"
+				/>
+				<span class="text-sm font-medium text-gray-700">終日</span>
+			</label>
+
+			{#if all_day}
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1" for="start_dt">開始日時</label>
+					<label class="block text-sm font-medium text-gray-700 mb-1" for="all_day_date">日付</label>
 					<input
-						id="start_dt"
-						type="datetime-local"
-						bind:value={start_dt}
+						id="all_day_date"
+						type="date"
+						bind:value={all_day_date}
 						class="w-full box-border px-2 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:outline-none"
 						required
 					/>
 				</div>
-				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1" for="end_dt">終了日時</label>
-					<input
-						id="end_dt"
-						type="datetime-local"
-						bind:value={end_dt}
-						class="w-full box-border px-2 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:outline-none"
-						required
-					/>
+			{:else}
+				<div class="space-y-3">
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-1" for="start_dt">開始日時</label>
+						<input
+							id="start_dt"
+							type="datetime-local"
+							bind:value={start_dt}
+							class="w-full box-border px-2 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:outline-none"
+							required
+						/>
+					</div>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-1" for="end_dt">終了日時</label>
+						<input
+							id="end_dt"
+							type="datetime-local"
+							bind:value={end_dt}
+							class="w-full box-border px-2 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:outline-none"
+							required
+						/>
+					</div>
 				</div>
-			</div>
+			{/if}
 			<div>
 				<label class="block text-sm font-medium text-gray-700 mb-1" for="memo">メモ（任意）</label>
 				<textarea
