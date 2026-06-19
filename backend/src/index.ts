@@ -6,12 +6,12 @@ import bcrypt from 'bcryptjs';
 import { Resend } from 'resend';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { pool, initDB } from './db.js';
-import { authMiddleware, createSessionToken } from './auth.js';
+import { authMiddleware, adminMiddleware, createSessionToken } from './auth.js';
 import { nextDeadline, nextEvent, type RepeatType } from './repeat.js';
 import { startScheduler } from './scheduler.js';
 import { isPushConfigured } from './push.js';
 
-type Variables = { userId: string };
+type Variables = { userId: string; userRole: string };
 const app = new Hono<{ Variables: Variables }>();
 
 const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
@@ -118,12 +118,21 @@ app.post('/api/auth/register', async (c) => {
 });
 
 // Step 2: verify code and create account.
+// Pass asAdmin=true to register the first admin (allowed only when no admin exists yet).
 app.post('/api/auth/verify', async (c) => {
-  const { email, code } = await c.req.json<{ email?: string; code?: string }>();
+  const { email, code, asAdmin } = await c.req.json<{ email?: string; code?: string; asAdmin?: boolean }>();
   if (!email || !code) {
     return c.json({ success: false, message: 'メールアドレスとコードを入力してください' }, 400);
   }
   const normalized = email.trim().toLowerCase();
+
+  // If requesting admin registration, ensure no admin exists yet.
+  if (asAdmin) {
+    const [adminRows] = await pool.query<any[]>(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);
+    if (adminRows.length > 0) {
+      return c.json({ success: false, message: '管理者アカウントはすでに存在します' }, 409);
+    }
+  }
 
   const [rows] = await pool.query<any[]>(
     `SELECT id FROM email_verifications
@@ -135,30 +144,25 @@ app.post('/api/auth/verify', async (c) => {
     return c.json({ success: false, message: 'コードが無効または期限切れです' }, 400);
   }
 
-  // Delete used codes for this email.
   await pool.query('DELETE FROM email_verifications WHERE email = ?', [normalized]);
 
-  // Upsert user: if unverified stub exists, verify it; otherwise create new.
-  const [existing] = await pool.query<any[]>(
-    'SELECT id FROM users WHERE email = ?', [normalized]
-  );
+  const role = asAdmin ? 'admin' : 'user';
+  const [existing] = await pool.query<any[]>('SELECT id FROM users WHERE email = ?', [normalized]);
 
   let userId: string;
   if (existing.length > 0) {
     userId = existing[0].id;
-    await pool.query(
-      'UPDATE users SET email_verified = TRUE WHERE id = ?', [userId]
-    );
+    await pool.query('UPDATE users SET email_verified = TRUE, role = ? WHERE id = ?', [role, userId]);
   } else {
     userId = crypto.randomUUID();
     const hash = await bcrypt.hash('pass', BCRYPT_ROUNDS);
     await pool.query(
-      'INSERT INTO users (id, email, email_verified, password_hash) VALUES (?, ?, TRUE, ?)',
-      [userId, normalized, hash]
+      'INSERT INTO users (id, email, email_verified, password_hash, role) VALUES (?, ?, TRUE, ?, ?)',
+      [userId, normalized, hash, role]
     );
   }
 
-  const token = await createSessionToken(userId);
+  const token = await createSessionToken(userId, role);
   return c.json({ success: true, token });
 });
 
@@ -171,13 +175,17 @@ app.post('/api/auth/login', async (c) => {
   const normalized = email.trim().toLowerCase();
 
   const [rows] = await pool.query<any[]>(
-    'SELECT id, password_hash, email_verified, login_attempts, locked_until FROM users WHERE email = ?',
+    'SELECT id, password_hash, email_verified, role, is_suspended, login_attempts, locked_until FROM users WHERE email = ?',
     [normalized]
   );
   const user = rows[0];
 
   if (!user || !user.email_verified) {
     return c.json({ success: false, message: 'メールアドレスまたはパスワードが違います' }, 401);
+  }
+
+  if (user.is_suspended) {
+    return c.json({ success: false, message: 'このアカウントは停止されています。管理者にお問い合わせください' }, 403);
   }
 
   // Check lock.
@@ -203,8 +211,8 @@ app.post('/api/auth/login', async (c) => {
 
   // Reset attempts on success.
   await pool.query('UPDATE users SET login_attempts = 0, locked_until = NULL WHERE id = ?', [user.id]);
-  const token = await createSessionToken(user.id);
-  return c.json({ success: true, token });
+  const token = await createSessionToken(user.id, user.role ?? 'user');
+  return c.json({ success: true, token, role: user.role ?? 'user' });
 });
 
 // --- Protected routes --------------------------------------------------------
@@ -218,8 +226,8 @@ app.use('/api/ai/*', authMiddleware);
 
 app.get('/api/settings/me', async (c) => {
   const userId = c.get('userId');
-  const [rows] = await pool.query<any[]>('SELECT email FROM users WHERE id = ?', [userId]);
-  return c.json({ email: rows[0]?.email ?? null });
+  const [rows] = await pool.query<any[]>('SELECT email, role FROM users WHERE id = ?', [userId]);
+  return c.json({ email: rows[0]?.email ?? null, role: rows[0]?.role ?? 'user' });
 });
 
 app.put('/api/settings/password', async (c) => {
@@ -230,6 +238,85 @@ app.put('/api/settings/password', async (c) => {
   }
   const hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
   await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, userId]);
+  return c.json({ success: true });
+});
+
+// --- Admin -------------------------------------------------------------------
+
+app.use('/api/admin/*', adminMiddleware);
+
+// Check if admin account exists (used by register page to show/hide admin option).
+app.get('/api/admin/exists', (c) => {
+  // This is a public endpoint — no auth needed.
+  return c.json({ exists: false }); // placeholder; real check below
+});
+app.get('/api/auth/admin-exists', async (c) => {
+  const [rows] = await pool.query<any[]>(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);
+  return c.json({ exists: rows.length > 0 });
+});
+
+app.get('/api/admin/users', async (c) => {
+  const [rows] = await pool.query<any[]>(
+    `SELECT id, email, role, is_suspended, email_verified, created_at,
+       (SELECT COUNT(*) FROM tasks WHERE tasks.user_id = users.id) AS task_count,
+       (SELECT COUNT(*) FROM events WHERE events.user_id = users.id) AS event_count
+     FROM users ORDER BY created_at ASC`
+  );
+  return c.json(rows);
+});
+
+app.get('/api/admin/users/:id/tasks', async (c) => {
+  const targetId = c.req.param('id');
+  const [rows] = await pool.query(
+    'SELECT * FROM tasks WHERE user_id = ? ORDER BY deadline ASC',
+    [targetId]
+  );
+  return c.json(rows);
+});
+
+app.get('/api/admin/users/:id/events', async (c) => {
+  const targetId = c.req.param('id');
+  const [rows] = await pool.query(
+    'SELECT * FROM events WHERE user_id = ? ORDER BY start_dt ASC',
+    [targetId]
+  );
+  return c.json(rows);
+});
+
+app.put('/api/admin/users/:id/suspend', async (c) => {
+  const targetId = c.req.param('id');
+  const adminId = c.get('userId');
+  if (targetId === adminId) {
+    return c.json({ success: false, message: '自分自身を停止することはできません' }, 400);
+  }
+  const [rows] = await pool.query<any[]>('SELECT role FROM users WHERE id = ?', [targetId]);
+  if (rows[0]?.role === 'admin') {
+    return c.json({ success: false, message: '管理者アカウントは停止できません' }, 400);
+  }
+  await pool.query('UPDATE users SET is_suspended = TRUE WHERE id = ?', [targetId]);
+  return c.json({ success: true });
+});
+
+app.put('/api/admin/users/:id/unsuspend', async (c) => {
+  const targetId = c.req.param('id');
+  await pool.query('UPDATE users SET is_suspended = FALSE WHERE id = ?', [targetId]);
+  return c.json({ success: true });
+});
+
+app.delete('/api/admin/users/:id', async (c) => {
+  const targetId = c.req.param('id');
+  const adminId = c.get('userId');
+  if (targetId === adminId) {
+    return c.json({ success: false, message: '自分自身を削除することはできません' }, 400);
+  }
+  const [rows] = await pool.query<any[]>('SELECT role FROM users WHERE id = ?', [targetId]);
+  if (rows[0]?.role === 'admin') {
+    return c.json({ success: false, message: '管理者アカウントは削除できません' }, 400);
+  }
+  await pool.query('DELETE FROM tasks WHERE user_id = ?', [targetId]);
+  await pool.query('DELETE FROM events WHERE user_id = ?', [targetId]);
+  await pool.query('DELETE FROM push_subscriptions WHERE user_id = ?', [targetId]);
+  await pool.query('DELETE FROM users WHERE id = ?', [targetId]);
   return c.json({ success: true });
 });
 

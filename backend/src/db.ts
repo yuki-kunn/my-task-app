@@ -25,11 +25,23 @@ export async function initDB() {
         email VARCHAR(255) NULL UNIQUE,
         email_verified BOOLEAN NOT NULL DEFAULT FALSE,
         password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'user',
+        is_suspended BOOLEAN NOT NULL DEFAULT FALSE,
         login_attempts INT NOT NULL DEFAULT 0,
         locked_until DATETIME NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Migrate: add role / is_suspended columns if missing.
+    const [roleCol] = await connection.query<any[]>(`SHOW COLUMNS FROM users LIKE 'role'`);
+    if (roleCol.length === 0) {
+      await connection.query(`ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'user'`);
+    }
+    const [suspendedCol] = await connection.query<any[]>(`SHOW COLUMNS FROM users LIKE 'is_suspended'`);
+    if (suspendedCol.length === 0) {
+      await connection.query(`ALTER TABLE users ADD COLUMN is_suspended BOOLEAN NOT NULL DEFAULT FALSE`);
+    }
 
     // Migrate legacy single-user row: add missing columns if they don't exist.
     const [emailCol] = await connection.query<any[]>(`SHOW COLUMNS FROM users LIKE 'email'`);

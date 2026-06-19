@@ -1,19 +1,22 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { getToken, requestVerificationCode, verifyAndRegister, ApiError } from '$lib/api';
+	import { getToken, requestVerificationCode, verifyAndRegister, checkAdminExists, ApiError } from '$lib/api';
 
 	type Step = 'email' | 'verify';
 
 	let step = $state<Step>('email');
 	let email = $state('');
 	let code = $state('');
+	let asAdmin = $state(false);
+	let adminExists = $state(true); // assume exists until checked
 	let fallbackCode = $state<string | undefined>(undefined);
 	let errorMsg = $state('');
 	let loading = $state(false);
 
-	onMount(() => {
-		if (getToken()) goto('/dashboard');
+	onMount(async () => {
+		if (getToken()) { goto('/dashboard'); return; }
+		adminExists = await checkAdminExists();
 	});
 
 	async function handleRequestCode() {
@@ -34,7 +37,7 @@
 		errorMsg = '';
 		loading = true;
 		try {
-			await verifyAndRegister(email, code);
+			await verifyAndRegister(email, code, asAdmin);
 			await goto('/dashboard');
 		} catch (err) {
 			errorMsg = err instanceof ApiError ? err.message : '認証に失敗しました';
@@ -67,6 +70,17 @@
 					required
 				/>
 			</div>
+
+			{#if !adminExists}
+				<label class="flex items-center gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50 cursor-pointer">
+					<input type="checkbox" bind:checked={asAdmin} class="w-4 h-4 rounded text-amber-600" />
+					<div>
+						<p class="text-sm font-medium text-amber-800">管理者アカウントとして登録</p>
+						<p class="text-xs text-amber-600">この操作は一度きりです。管理者が存在しない今のみ選択できます。</p>
+					</div>
+				</label>
+			{/if}
+
 			{#if errorMsg}
 				<p class="text-red-500 text-sm">{errorMsg}</p>
 			{/if}
@@ -87,6 +101,11 @@
 				<div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
 					<p class="text-amber-700 font-medium mb-1">開発モード（メール未設定）</p>
 					<p class="text-amber-800">認証コード: <span class="font-mono text-lg font-bold tracking-widest">{fallbackCode}</span></p>
+				</div>
+			{/if}
+			{#if asAdmin}
+				<div class="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+					<span>⚙️</span> 管理者アカウントとして登録されます
 				</div>
 			{/if}
 			<div>

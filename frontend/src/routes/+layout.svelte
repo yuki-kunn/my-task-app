@@ -2,16 +2,16 @@
 	import '../app.css';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { CheckSquare, Calendar, Settings, LogOut, Sparkles } from 'lucide-svelte';
-	import { getToken, clearToken } from '$lib/api';
+	import { CheckSquare, Calendar, Settings, LogOut, Sparkles, ShieldCheck } from 'lucide-svelte';
+	import { getToken, clearToken, fetchMe } from '$lib/api';
 
 	let { children } = $props();
 
 	let isAuthenticated = $state(false);
+	let isAdmin = $state(false);
 	let checked = $state(false);
 
 	$effect(() => {
-		// Re-check on every navigation so logging in updates the nav bar without a reload.
 		page.url.pathname;
 		isAuthenticated = !!getToken();
 		const publicPaths = ['/', '/register'];
@@ -21,13 +21,24 @@
 		checked = true;
 	});
 
+	// Fetch role when authenticated (once per session is enough; re-fetch on path change).
+	$effect(() => {
+		page.url.pathname;
+		if (isAuthenticated) {
+			fetchMe().then((me) => { isAdmin = me.role === 'admin'; }).catch(() => {});
+		} else {
+			isAdmin = false;
+		}
+	});
+
 	function logout() {
 		clearToken();
 		isAuthenticated = false;
 		goto('/');
 	}
 
-	const showNav = $derived(isAuthenticated && page.url.pathname !== '/');
+	const hiddenPaths = ['/', '/register'];
+	const showNav = $derived(isAuthenticated && !hiddenPaths.includes(page.url.pathname));
 </script>
 
 <div class="min-h-screen flex flex-col pb-16 md:pb-0">
@@ -49,6 +60,11 @@
 				<a href="/settings" class="flex items-center gap-1 hover:text-indigo-200">
 					<Settings size={18} /> 設定
 				</a>
+				{#if isAdmin}
+					<a href="/admin" class="flex items-center gap-1 bg-indigo-500 px-3 py-1.5 rounded hover:bg-indigo-400 text-sm">
+						<ShieldCheck size={16} /> 管理
+					</a>
+				{/if}
 				<button
 					onclick={logout}
 					class="flex items-center gap-1 bg-indigo-700 px-3 py-1.5 rounded hover:bg-indigo-800 text-sm"
@@ -81,6 +97,11 @@
 			<a href="/settings" class="flex-1 flex flex-col items-center justify-center py-3 text-xs text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
 				<Settings size={22} class="mb-1" /> 設定
 			</a>
+			{#if isAdmin}
+				<a href="/admin" class="flex-1 flex flex-col items-center justify-center py-3 text-xs text-indigo-600 hover:bg-indigo-50">
+					<ShieldCheck size={22} class="mb-1" /> 管理
+				</a>
+			{/if}
 		</nav>
 	{/if}
 </div>

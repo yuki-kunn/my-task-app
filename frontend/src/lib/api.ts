@@ -48,7 +48,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 	return res.json() as Promise<T>;
 }
 
-export async function login(email: string, password: string) {
+export async function login(email: string, password: string): Promise<{ role: string }> {
 	const res = await fetch(`${API_URL}/auth/login`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -57,6 +57,13 @@ export async function login(email: string, password: string) {
 	const data = await res.json();
 	if (!data.success) throw new ApiError(data.message ?? 'メールアドレスまたはパスワードが違います');
 	setToken(data.token);
+	return { role: data.role ?? 'user' };
+}
+
+export async function checkAdminExists(): Promise<boolean> {
+	const res = await fetch(`${API_URL}/auth/admin-exists`);
+	const data = await res.json();
+	return data.exists as boolean;
 }
 
 export async function requestVerificationCode(email: string): Promise<{ fallback: boolean; code?: string }> {
@@ -70,11 +77,11 @@ export async function requestVerificationCode(email: string): Promise<{ fallback
 	return { fallback: data.fallback, code: data.code };
 }
 
-export async function verifyAndRegister(email: string, code: string) {
+export async function verifyAndRegister(email: string, code: string, asAdmin = false) {
 	const res = await fetch(`${API_URL}/auth/verify`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, code })
+		body: JSON.stringify({ email, code, asAdmin })
 	});
 	const data = await res.json();
 	if (!data.success) throw new ApiError(data.message ?? '認証に失敗しました');
@@ -82,7 +89,7 @@ export async function verifyAndRegister(email: string, code: string) {
 }
 
 export function fetchMe() {
-	return request<{ email: string | null }>('/settings/me');
+	return request<{ email: string | null; role: string }>('/settings/me');
 }
 
 export async function changePassword(newPassword: string) {
@@ -166,4 +173,41 @@ export function unsubscribePush(endpoint: string) {
 		method: 'POST',
 		body: JSON.stringify({ endpoint })
 	});
+}
+
+// --- Admin -------------------------------------------------------------------
+
+export interface AdminUser {
+	id: string;
+	email: string;
+	role: string;
+	is_suspended: boolean;
+	email_verified: boolean;
+	created_at: string;
+	task_count: number;
+	event_count: number;
+}
+
+export function fetchAdminUsers() {
+	return request<AdminUser[]>('/admin/users');
+}
+
+export function fetchAdminUserTasks(userId: string) {
+	return request<any[]>(`/admin/users/${userId}/tasks`);
+}
+
+export function fetchAdminUserEvents(userId: string) {
+	return request<any[]>(`/admin/users/${userId}/events`);
+}
+
+export function suspendUser(userId: string) {
+	return request<{ success: boolean }>(`/admin/users/${userId}/suspend`, { method: 'PUT' });
+}
+
+export function unsuspendUser(userId: string) {
+	return request<{ success: boolean }>(`/admin/users/${userId}/unsuspend`, { method: 'PUT' });
+}
+
+export function deleteUser(userId: string) {
+	return request<{ success: boolean }>(`/admin/users/${userId}`, { method: 'DELETE' });
 }
