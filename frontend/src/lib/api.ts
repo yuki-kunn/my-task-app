@@ -66,7 +66,7 @@ export async function checkAdminExists(): Promise<boolean> {
 	return data.exists as boolean;
 }
 
-export async function requestVerificationCode(email: string): Promise<{ fallback: boolean; code?: string }> {
+export async function requestVerificationCode(email: string): Promise<{ fallback: boolean; code?: string; resendError?: string }> {
 	const res = await fetch(`${API_URL}/auth/register`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -74,7 +74,7 @@ export async function requestVerificationCode(email: string): Promise<{ fallback
 	});
 	const data = await res.json();
 	if (!data.success) throw new ApiError(data.message ?? '登録に失敗しました');
-	return { fallback: data.fallback, code: data.code };
+	return { fallback: data.fallback, code: data.code, resendError: data.resendError };
 }
 
 export async function verifyAndRegister(email: string, code: string, asAdmin = false) {

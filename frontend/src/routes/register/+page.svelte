@@ -11,6 +11,7 @@
 	let asAdmin = $state(false);
 	let adminExists = $state(true); // assume exists until checked
 	let fallbackCode = $state<string | undefined>(undefined);
+	let resendError = $state<string | undefined>(undefined);
 	let errorMsg = $state('');
 	let loading = $state(false);
 
@@ -25,6 +26,7 @@
 		try {
 			const result = await requestVerificationCode(email);
 			fallbackCode = result.code;
+			resendError = result.resendError;
 			step = 'verify';
 		} catch (err) {
 			errorMsg = err instanceof ApiError ? err.message : '登録に失敗しました';
@@ -99,7 +101,12 @@
 			</p>
 			{#if fallbackCode}
 				<div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
-					<p class="text-amber-700 font-medium mb-1">開発モード（メール未設定）</p>
+					<p class="text-amber-700 font-medium mb-1">
+						{resendError ? 'メール送信エラー（フォールバック表示）' : '開発モード（メール未設定）'}
+					</p>
+					{#if resendError}
+						<p class="text-xs text-amber-600 mb-1">Resendエラー: {resendError}</p>
+					{/if}
 					<p class="text-amber-800">認証コード: <span class="font-mono text-lg font-bold tracking-widest">{fallbackCode}</span></p>
 				</div>
 			{/if}

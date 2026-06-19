@@ -111,8 +111,9 @@ app.post('/api/auth/register', async (c) => {
       `,
     });
     if (error) {
-      console.error('Resend error:', error);
-      return c.json({ success: false, message: 'メール送信に失敗しました。しばらく後に再試行してください' }, 500);
+      console.error('Resend error:', JSON.stringify(error));
+      // Resend送信失敗時はフォールバックモードに切り替え（コードを画面に表示）
+      return c.json({ success: true, fallback: true, code, resendError: error.message });
     }
     return c.json({ success: true, fallback: false });
   }
