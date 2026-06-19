@@ -190,7 +190,7 @@
 				<Loader size={18} class="animate-spin" /> 解析中...
 			{:else}
 				<Sparkles size={18} /> AIで解析
-				<span class="hidden md:inline text-indigo-300 text-xs font-normal ml-1">Ctrl+Enter</span>
+				<kbd class="hidden md:inline-flex items-center gap-0.5 ml-2 px-1.5 py-0.5 rounded text-[10px] font-sans font-normal bg-indigo-500 text-indigo-200 border border-indigo-400">Ctrl+Enter</kbd>
 			{/if}
 		</button>
 
