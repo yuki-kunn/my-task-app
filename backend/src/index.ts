@@ -74,14 +74,17 @@ app.post('/api/auth/register', async (c) => {
     return c.json({ success: false, message: 'このメールアドレスはすでに登録されています' }, 409);
   }
 
-  // Rate-limit: max 3 pending codes per email within 10 min.
+  // 期限切れコードを先に削除してからカウント（使用済み残骸による誤判定を防ぐ）。
+  await pool.query(`DELETE FROM email_verifications WHERE expires_at <= NOW()`);
+
+  // Rate-limit: max 5 active (未期限切れ) codes per email within 10 min.
   const [recent] = await pool.query<any[]>(
     `SELECT COUNT(*) AS cnt FROM email_verifications
-     WHERE email = ? AND created_at > DATE_SUB(NOW(), INTERVAL 10 MINUTE)`,
+     WHERE email = ? AND expires_at > NOW()`,
     [normalized]
   );
-  if (recent[0].cnt >= 3) {
-    return c.json({ success: false, message: 'しばらく待ってから再試行してください' }, 429);
+  if (recent[0].cnt >= 5) {
+    return c.json({ success: false, message: 'しばらく待ってから再試行してください（10分後に再度お試しください）' }, 429);
   }
 
   const code = generateCode();
