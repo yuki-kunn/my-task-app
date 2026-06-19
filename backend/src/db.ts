@@ -54,14 +54,47 @@ export async function initDB() {
       // Give legacy row a UUID primary key (id column was INT, need to re-create).
       // Safest: just add cols and leave PK as INT for existing table.
     }
+    // Legacy INT id migration: rebuild users table with VARCHAR(36) primary key.
     const [idCol] = await connection.query<any[]>(`SHOW COLUMNS FROM users LIKE 'id'`);
-    if (idCol.length > 0 && idCol[0].Type === 'int') {
-      // Legacy INT id — add uuid column and migrate
-      const [uuidCol] = await connection.query<any[]>(`SHOW COLUMNS FROM users LIKE 'uuid'`);
-      if (uuidCol.length === 0) {
-        await connection.query(`ALTER TABLE users ADD COLUMN uuid VARCHAR(36) NULL`);
-        await connection.query(`UPDATE users SET uuid = UUID() WHERE uuid IS NULL`);
+    if (idCol.length > 0 && idCol[0].Type.startsWith('int')) {
+      // 1. 旧データを退避
+      const [oldUsers] = await connection.query<any[]>(`SELECT * FROM users`);
+
+      // 2. 依存テーブルの外部キー制約を一時無効化
+      await connection.query(`SET FOREIGN_KEY_CHECKS = 0`);
+
+      // 3. 旧テーブルを削除して新スキーマで再作成
+      await connection.query(`DROP TABLE users`);
+      await connection.query(`
+        CREATE TABLE users (
+          id VARCHAR(36) PRIMARY KEY,
+          email VARCHAR(255) NULL UNIQUE,
+          email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+          password_hash VARCHAR(255) NOT NULL,
+          role VARCHAR(20) NOT NULL DEFAULT 'user',
+          is_suspended BOOLEAN NOT NULL DEFAULT FALSE,
+          login_attempts INT NOT NULL DEFAULT 0,
+          locked_until DATETIME NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // 4. 旧データを新スキーマに移行（UUIDを新たに割り当て）
+      for (const u of oldUsers) {
+        const newId = crypto.randomUUID();
+        await connection.query(
+          `INSERT INTO users (id, email, email_verified, password_hash, role, login_attempts, created_at)
+           VALUES (?, ?, ?, ?, 'user', 0, NOW())`,
+          [newId, u.email ?? null, u.email_verified ?? false, u.password_hash]
+        );
+        // tasks / events / push_subscriptions の user_id も更新
+        await connection.query(`UPDATE tasks SET user_id = ? WHERE user_id = ?`, [newId, String(u.id)]);
+        await connection.query(`UPDATE events SET user_id = ? WHERE user_id = ?`, [newId, String(u.id)]);
+        await connection.query(`UPDATE push_subscriptions SET user_id = ? WHERE user_id = ?`, [newId, String(u.id)]);
       }
+
+      await connection.query(`SET FOREIGN_KEY_CHECKS = 1`);
+      console.log('Legacy users table migrated to VARCHAR(36) primary key.');
     }
 
     await connection.query(`
