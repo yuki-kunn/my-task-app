@@ -1,163 +1,21 @@
 @import "tailwindcss";
 
-:root {
-  --royal-dark:  #1e1b4b;
-  --royal-mid:   #312e81;
-  --royal-base:  #4338ca;
-  --royal-light: #6366f1;
-  --gold-shine:  #c8a96e;
-  --gold-pale:   #e8d5a3;
-  --surface:     #fafafa;
-}
-
 body {
-  background: linear-gradient(160deg, #f0f0f8 0%, #f5f3ff 50%, #eef2ff 100%);
-  min-height: 100vh;
+  background-color: #f5f5f8;
   color: #1e1b4b;
-  font-family: 'Noto Serif JP', 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Helvetica Neue', Arial, 'Hiragino Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ─── Tasqa ロゴ ─────────────────────────────── */
+/* ロゴだけセリフ体 */
 .tasqa-logo {
   font-family: 'Cormorant Garamond', 'Georgia', serif;
-  font-size: 1.6rem;
+  font-size: 1.45rem;
   font-weight: 600;
-  letter-spacing: 0.18em;
-  background: linear-gradient(135deg, #e8d5a3 0%, #f5e6c0 30%, #c8a96e 60%, #e8d5a3 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-shadow: none;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
+  letter-spacing: 0.12em;
+  color: #e0d8ff;
 }
 
-.tasqa-logo::before {
-  content: '';
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #e8d5a3, #c8a96e);
-  box-shadow: 0 0 6px 2px rgba(200,169,110,0.5);
-  flex-shrink: 0;
-}
-
-/* ─── ヘッダー ───────────────────────────────── */
-.royal-header {
-  background: linear-gradient(135deg, #1e1b4b 0%, #2d2a6e 40%, #3730a3 80%, #312e81 100%);
-  border-bottom: 1px solid rgba(200,169,110,0.25);
-  box-shadow:
-    0 1px 0 rgba(200,169,110,0.15),
-    0 4px 24px rgba(30,27,75,0.4),
-    0 2px 8px rgba(0,0,0,0.2);
-  position: relative;
-  overflow: hidden;
-}
-
-.royal-header::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent 0px,
-    transparent 80px,
-    rgba(255,255,255,0.015) 80px,
-    rgba(255,255,255,0.015) 81px
-  );
-  pointer-events: none;
-}
-
-.royal-header::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(200,169,110,0.6) 30%, rgba(232,213,163,0.9) 50%, rgba(200,169,110,0.6) 70%, transparent);
-}
-
-/* ─── ナビリンク ─────────────────────────────── */
-.nav-link {
-  position: relative;
-  font-family: 'Noto Serif JP', serif;
-  font-size: 0.8rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  color: rgba(220,215,255,0.85);
-  transition: color 0.2s;
-  padding: 0.3rem 0;
-}
-
-.nav-link:hover {
-  color: #e8d5a3;
-}
-
-.nav-link::after {
-  content: '';
-  position: absolute;
-  bottom: -2px; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(200,169,110,0.7), transparent);
-  transform: scaleX(0);
-  transition: transform 0.25s ease;
-}
-
-.nav-link:hover::after {
-  transform: scaleX(1);
-}
-
-/* ─── カード ─────────────────────────────────── */
-.card-royal {
-  background: linear-gradient(145deg, #ffffff 0%, #fdfcff 100%);
-  border: 1px solid rgba(99,102,241,0.1);
-  box-shadow:
-    0 1px 3px rgba(30,27,75,0.06),
-    0 4px 16px rgba(30,27,75,0.05);
-  border-radius: 0.875rem;
-  transition: box-shadow 0.2s, transform 0.15s;
-}
-
-.card-royal:hover {
-  box-shadow:
-    0 2px 8px rgba(30,27,75,0.09),
-    0 8px 24px rgba(30,27,75,0.08);
-  transform: translateY(-1px);
-}
-
-/* ─── ボタン ─────────────────────────────────── */
-.btn-royal {
-  background: linear-gradient(135deg, #4338ca, #5b21b6);
-  border: 1px solid rgba(200,169,110,0.2);
-  box-shadow: 0 2px 8px rgba(67,56,202,0.35), inset 0 1px 0 rgba(255,255,255,0.1);
-  color: #fff;
-  font-family: 'Noto Serif JP', serif;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  transition: all 0.2s;
-}
-
-.btn-royal:hover:not(:disabled) {
-  background: linear-gradient(135deg, #3730a3, #4c1d95);
-  box-shadow: 0 4px 16px rgba(67,56,202,0.45), inset 0 1px 0 rgba(255,255,255,0.12);
-  transform: translateY(-1px);
-}
-
-.btn-royal:disabled {
-  opacity: 0.5;
-}
-
-/* ─── チェックボックス ───────────────────────── */
-input[type="checkbox"] {
-  accent-color: #4338ca;
-}
-
-/* ─── スクロールバー ─────────────────────────── */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.45); }
+::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.2); border-radius: 9999px; }
