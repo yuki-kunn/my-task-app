@@ -179,6 +179,16 @@ export async function initDB() {
       await connection.query(`ALTER TABLE push_subscriptions ADD COLUMN user_id VARCHAR(36) NOT NULL DEFAULT ''`);
       await connection.query(`UPDATE push_subscriptions SET user_id = (SELECT id FROM users LIMIT 1) WHERE user_id = ''`);
     }
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS ai_usage (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
+        used_date DATE NOT NULL,
+        count INT NOT NULL DEFAULT 0,
+        UNIQUE KEY uq_user_date (user_id, used_date)
+      )
+    `);
   } finally {
     connection.release();
   }

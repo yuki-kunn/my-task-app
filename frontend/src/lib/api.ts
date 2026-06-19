@@ -169,7 +169,7 @@ export function deleteEvent(id: string) {
 }
 
 export function parseAiText(text: string, mode: 'simple' | 'organize') {
-	return request<{ success: boolean; items: AiItem[] }>('/ai/parse', {
+	return request<{ success: boolean; items: AiItem[]; used: number | null; limit: number | null }>('/ai/parse', {
 		method: 'POST',
 		body: JSON.stringify({ text, mode })
 	});

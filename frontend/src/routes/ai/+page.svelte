@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { Sparkles, Loader, Plus, Edit2, Trash2 } from 'lucide-svelte';
 	import { parseAiText, createTask, createEvent, ApiError } from '$lib/api';
 	import type { AiItem } from '$lib/types';
@@ -13,6 +13,13 @@
 	let errorMsg = $state('');
 	let successMsg = $state('');
 	let candidates = $state<Candidate[]>([]);
+	let usedCount = $state<number | null>(null);
+	let dailyLimit = $state<number | null>(null);
+
+	const remaining = $derived(
+		dailyLimit !== null && usedCount !== null ? dailyLimit - usedCount : null
+	);
+	const limitReached = $derived(remaining !== null && remaining <= 0);
 
 	async function parse() {
 		if (!inputText.trim()) {
@@ -26,6 +33,8 @@
 		try {
 			const res = await parseAiText(inputText, mode);
 			candidates = res.items.map((item) => ({ ...item, selected: true, editing: false }));
+			if (res.used !== null) usedCount = res.used;
+			if (res.limit !== null) dailyLimit = res.limit;
 		} catch (err) {
 			errorMsg = err instanceof ApiError ? err.message : 'AI解析に失敗しました';
 		} finally {
@@ -87,10 +96,30 @@
 
 <div class="max-w-2xl mx-auto space-y-6">
 	<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-		<div class="flex items-center gap-2 mb-4">
-			<Sparkles size={22} class="text-indigo-500" />
-			<h2 class="text-xl font-bold text-gray-800">AI登録</h2>
+		<div class="flex items-center justify-between mb-4">
+			<div class="flex items-center gap-2">
+				<Sparkles size={22} class="text-indigo-500" />
+				<h2 class="text-xl font-bold text-gray-800">AI登録</h2>
+			</div>
+			<!-- 残回数バッジ -->
+			{#if dailyLimit !== null && usedCount !== null}
+				<span class="text-xs px-2.5 py-1 rounded-full font-medium
+					{limitReached
+						? 'bg-red-100 text-red-600'
+						: remaining !== null && remaining <= 3
+							? 'bg-amber-100 text-amber-700'
+							: 'bg-indigo-50 text-indigo-500'}">
+					本日 {usedCount}/{dailyLimit} 回使用
+				</span>
+			{/if}
 		</div>
+
+		{#if limitReached}
+			<div class="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">
+				<span class="text-red-500 shrink-0 mt-0.5">⚠</span>
+				<p class="text-sm text-red-700">本日のAI利用上限（{dailyLimit}回）に達しました。明日0時（JST）にリセットされます。</p>
+			</div>
+		{/if}
 
 		<div class="flex gap-2 mb-4">
 			<button
@@ -127,7 +156,7 @@
 
 		<button
 			onclick={parse}
-			disabled={parsing}
+			disabled={parsing || limitReached}
 			class="mt-3 w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
 		>
 			{#if parsing}
@@ -136,6 +165,12 @@
 				<Sparkles size={18} /> AIで解析
 			{/if}
 		</button>
+
+		{#if dailyLimit !== null && !limitReached}
+			<p class="text-center text-xs text-gray-400 mt-2">
+				本日残り {remaining} 回使用できます（上限 {dailyLimit} 回/日）
+			</p>
+		{/if}
 	</div>
 
 	{#if candidates.length > 0}
