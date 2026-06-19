@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { Sparkles, Loader, Plus, Edit2, Trash2 } from 'lucide-svelte';
-	import { parseAiText, createTask, createEvent, ApiError } from '$lib/api';
+	import { parseAiText, fetchAiUsage, createTask, createEvent, ApiError } from '$lib/api';
 	import type { AiItem } from '$lib/types';
 
 	type Mode = 'simple' | 'organize';
@@ -18,6 +19,14 @@
 
 	const INPUT_LIMIT = $derived(mode === 'organize' ? 500 : 200);
 	const inputOver = $derived(inputText.length > INPUT_LIMIT);
+
+	onMount(async () => {
+		try {
+			const res = await fetchAiUsage();
+			if (res.used !== null) usedCount = res.used;
+			if (res.limit !== null) dailyLimit = res.limit;
+		} catch { /* ignore */ }
+	});
 
 	const remaining = $derived(
 		dailyLimit !== null && usedCount !== null ? dailyLimit - usedCount : null

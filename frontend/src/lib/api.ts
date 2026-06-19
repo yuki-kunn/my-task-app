@@ -168,6 +168,10 @@ export function deleteEvent(id: string) {
 	return request<{ success: boolean }>(`/events/${id}`, { method: 'DELETE' });
 }
 
+export function fetchAiUsage() {
+	return request<{ used: number | null; limit: number | null }>('/ai/usage');
+}
+
 export function parseAiText(text: string, mode: 'simple' | 'organize') {
 	return request<{ success: boolean; items: AiItem[]; used: number | null; limit: number | null }>('/ai/parse', {
 		method: 'POST',

@@ -460,6 +460,20 @@ function jstDateString(): string {
   return new Date(Date.now() + JST_OFFSET_MS).toISOString().slice(0, 10);
 }
 
+app.get('/api/ai/usage', async (c) => {
+  const userId = c.get('userId') as string;
+  const userRole = c.get('userRole') as string;
+  if (userRole === 'admin') {
+    return c.json({ used: null, limit: null });
+  }
+  const today = jstDateString();
+  const [[row]] = await pool.query<any[]>(
+    `SELECT count FROM ai_usage WHERE user_id = ? AND used_date = ?`,
+    [userId, today]
+  );
+  return c.json({ used: row?.count ?? 0, limit: AI_DAILY_LIMIT });
+});
+
 app.post('/api/ai/parse', async (c) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
