@@ -1,17 +1,12 @@
 /// <reference lib="webworker" />
-import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
-
 declare let self: ServiceWorkerGlobalScope;
 
-precacheAndRoute(self.__WB_MANIFEST);
-cleanupOutdatedCaches();
-
-self.skipWaiting();
+self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', () => self.clients.claim());
 
 self.addEventListener('push', (event) => {
 	const data = event.data?.json() ?? {};
-	const title = data.title ?? 'YukiTask';
+	const title = data.title ?? 'Tasqa';
 	const options: NotificationOptions = {
 		body: data.body ?? '',
 		icon: '/pwa-192x192.png',
