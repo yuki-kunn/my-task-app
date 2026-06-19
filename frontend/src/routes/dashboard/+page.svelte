@@ -93,29 +93,35 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-5">
 	<div class="flex justify-between items-center">
-		<div class="flex gap-1 bg-gray-100 p-1 rounded-lg">
+		<div class="flex gap-0.5 bg-white/70 backdrop-blur-sm p-1 rounded-xl border border-indigo-100/60 shadow-sm">
 			<button
 				onclick={() => { tab = 'task'; }}
-				class="px-4 py-1.5 rounded-md text-sm font-semibold transition
-					{tab === 'task' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+				class="px-5 py-1.5 rounded-lg text-[12px] tracking-wider transition-all duration-200
+					{tab === 'task'
+						? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-200'
+						: 'text-gray-400 hover:text-gray-600'}"
+				style="font-family:'Noto Serif JP',serif;"
 			>
 				タスク
 			</button>
 			<button
 				onclick={() => { tab = 'event'; }}
-				class="px-4 py-1.5 rounded-md text-sm font-semibold transition
-					{tab === 'event' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+				class="px-5 py-1.5 rounded-lg text-[12px] tracking-wider transition-all duration-200
+					{tab === 'event'
+						? 'bg-gradient-to-r from-violet-600 to-violet-700 text-white shadow-md shadow-violet-200'
+						: 'text-gray-400 hover:text-gray-600'}"
+				style="font-family:'Noto Serif JP',serif;"
 			>
 				予定
 			</button>
 		</div>
 		<button
 			onclick={createNew}
-			class="flex items-center gap-1 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition shadow"
+			class="btn-royal flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] tracking-wider"
 		>
-			<Plus size={18} /> 追加
+			<Plus size={16} /> 追加
 		</button>
 	</div>
 

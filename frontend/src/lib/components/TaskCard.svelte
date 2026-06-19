@@ -32,54 +32,55 @@
 
 <div
 	style={getDeadlineStyle(task.deadline, task.is_completed)}
-	class="flex items-center justify-between p-4 rounded-xl shadow-sm border border-gray-100 transition-all cursor-grab active:cursor-grabbing
-		{colorClass}"
+	class="card-royal flex items-center justify-between px-4 py-3.5 cursor-grab active:cursor-grabbing
+		{colorClass} {task.is_completed ? 'opacity-60' : ''}"
 >
 	<div class="flex items-center gap-3 flex-1 min-w-0">
 		<input
 			type="checkbox"
 			checked={task.is_completed}
 			onchange={() => onToggle(task)}
-			class="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+			class="w-4.5 h-4.5 rounded text-indigo-600 focus:ring-indigo-400 cursor-pointer shrink-0"
 			aria-label="完了にする"
 		/>
-		<div class="truncate flex-1">
-			<p class="font-semibold text-gray-800 truncate {task.is_completed ? 'line-through' : ''} flex items-center gap-1.5">
+		<div class="truncate flex-1 min-w-0">
+			<p class="font-medium text-[13.5px] text-gray-800 truncate
+				{task.is_completed ? 'line-through text-gray-400' : ''}
+				flex items-center gap-1.5"
+				style="font-family:'Noto Serif JP',serif; letter-spacing:0.01em;">
 				{#if dotClass}
-					<span class="shrink-0 w-2.5 h-2.5 rounded-full {dotClass}"></span>
+					<span class="shrink-0 w-2 h-2 rounded-full {dotClass}"></span>
 				{/if}
 				{task.title}
 			</p>
-			<p class="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-				<Memo size={12} />
+			<p class="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5" style="letter-spacing:0.02em;">
+				<Memo size={11} />
 				{formatDeadline(task.deadline)}
 				{#if task.repeat_type !== 'none'}
-					<span
-						class="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded text-[10px] ml-1 flex items-center gap-0.5"
-					>
-						<RotateCw size={10} />{REPEAT_LABEL[task.repeat_type]}
+					<span class="bg-indigo-50 text-indigo-500 border border-indigo-100 px-1.5 py-0.5 rounded text-[9px] ml-1 flex items-center gap-0.5 tracking-wide">
+						<RotateCw size={9} />{REPEAT_LABEL[task.repeat_type]}
 					</span>
 				{/if}
 			</p>
 		</div>
 	</div>
 
-	<div class="flex items-center gap-2 ml-4">
+	<div class="flex items-center gap-1 ml-3 shrink-0">
 		<button
 			onclick={() => onEdit(task)}
-			class="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-lg"
+			class="p-1.5 text-gray-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
 			title="編集"
 			aria-label="編集"
 		>
-			<Edit size={16} />
+			<Edit size={14} />
 		</button>
 		<button
 			onclick={() => onDelete(task.id)}
-			class="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-lg"
+			class="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors"
 			title="削除"
 			aria-label="削除"
 		>
-			<Trash2 size={16} />
+			<Trash2 size={14} />
 		</button>
 	</div>
 </div>

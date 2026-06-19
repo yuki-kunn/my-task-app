@@ -20,7 +20,6 @@
 			goto('/');
 			return;
 		}
-		// 初期パスワードのままなら設定ページ以外へのアクセスを遮断
 		mustChangePassword = isAuthenticated ? getPasswordIsDefault() : false;
 		if (mustChangePassword && page.url.pathname !== '/settings') {
 			goto('/settings');
@@ -46,37 +45,58 @@
 
 	const hiddenPaths = ['/', '/register'];
 	const showNav = $derived(isAuthenticated && !hiddenPaths.includes(page.url.pathname));
+
+	const navItems = [
+		{ href: '/dashboard', icon: CheckSquare, label: 'タスク' },
+		{ href: '/calendar',  icon: Calendar,    label: 'カレンダー' },
+		{ href: '/ai',        icon: Sparkles,    label: 'AI登録' },
+		{ href: '/settings',  icon: Settings,    label: '設定' },
+	];
 </script>
 
 <div class="min-h-screen flex flex-col pb-16 md:pb-0">
+
 	{#if showNav}
-		<header
-			class="hidden md:flex bg-indigo-600 text-white justify-between items-center px-6 py-4 shadow-md"
-		>
-			<h1 class="text-xl font-bold tracking-wider">Tasqa</h1>
-			<nav class="flex gap-6 items-center">
-				<a href="/dashboard" class="flex items-center gap-1 hover:text-indigo-200">
-					<CheckSquare size={18} /> ダッシュボード
-				</a>
-				<a href="/calendar" class="flex items-center gap-1 hover:text-indigo-200">
-					<Calendar size={18} /> カレンダー
-				</a>
-				<a href="/ai" class="flex items-center gap-1 hover:text-indigo-200">
-					<Sparkles size={18} /> AI登録
-				</a>
-				<a href="/settings" class="flex items-center gap-1 hover:text-indigo-200">
-					<Settings size={18} /> 設定
-				</a>
+		<!-- ── PC ヘッダー ─────────────────────────── -->
+		<header class="royal-header hidden md:flex justify-between items-center px-8 py-0 h-[60px]">
+			<!-- ロゴ -->
+			<a href="/dashboard" class="tasqa-logo select-none">Tasqa</a>
+
+			<!-- ナビ -->
+			<nav class="flex items-center gap-7">
+				{#each navItems as item}
+					<a
+						href={item.href}
+						class="nav-link flex items-center gap-1.5"
+						class:active={page.url.pathname === item.href}
+					>
+						<svelte:component this={item.icon} size={15} />
+						{item.label}
+					</a>
+				{/each}
+
 				{#if isAdmin}
-					<a href="/admin" class="flex items-center gap-1 bg-indigo-500 px-3 py-1.5 rounded hover:bg-indigo-400 text-sm">
-						<ShieldCheck size={16} /> 管理
+					<a
+						href="/admin"
+						class="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-medium tracking-wider
+							border border-yellow-400/40 text-yellow-200 hover:text-yellow-100 hover:border-yellow-300/60
+							transition-all duration-200 bg-white/5 hover:bg-white/10"
+						style="font-family: 'Noto Serif JP', serif; letter-spacing: 0.08em;"
+					>
+						<ShieldCheck size={13} /> 管理
 					</a>
 				{/if}
+
+				<!-- 区切り線 -->
+				<span class="h-5 w-px bg-white/15"></span>
+
 				<button
 					onclick={logout}
-					class="flex items-center gap-1 bg-indigo-700 px-3 py-1.5 rounded hover:bg-indigo-800 text-sm"
+					class="flex items-center gap-1.5 text-[11px] tracking-wider
+						text-white/50 hover:text-red-300 transition-colors duration-200"
+					style="font-family: 'Noto Serif JP', serif;"
 				>
-					<LogOut size={16} /> ログアウト
+					<LogOut size={14} /> ログアウト
 				</button>
 			</nav>
 		</header>
@@ -89,26 +109,46 @@
 	</main>
 
 	{#if showNav}
-		<nav
-			class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-50 shadow-lg"
-		>
-			<a href="/dashboard" class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
-				<CheckSquare size={20} /> タスク
-			</a>
-			<a href="/calendar" class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
-				<Calendar size={20} /> カレンダー
-			</a>
-			<a href="/ai" class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
-				<Sparkles size={20} /> AI
-			</a>
-			<a href="/settings" class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
-				<Settings size={20} /> 設定
-			</a>
+		<!-- ── モバイル下部ナビ ─────────────────────── -->
+		<nav class="md:hidden fixed bottom-0 left-0 right-0 z-50
+			bg-gradient-to-t from-[#1e1b4b] to-[#2d2a6e]
+			border-t border-[rgba(200,169,110,0.2)]
+			shadow-[0_-4px_24px_rgba(30,27,75,0.5)]
+			flex">
+
+			{#each navItems as item}
+				{@const active = page.url.pathname === item.href}
+				<a
+					href={item.href}
+					class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[9px] tracking-wider transition-colors duration-200
+						{active ? 'text-yellow-200' : 'text-indigo-300/70 hover:text-indigo-100'}"
+					style="font-family: 'Noto Serif JP', serif;"
+				>
+					<svelte:component this={item.icon} size={19} />
+					{item.label}
+				</a>
+			{/each}
+
 			{#if isAdmin}
-				<a href="/admin" class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] text-indigo-600 hover:bg-indigo-50">
-					<ShieldCheck size={20} /> 管理
+				<a
+					href="/admin"
+					class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[9px] tracking-wider
+						text-yellow-300/80 hover:text-yellow-200 transition-colors duration-200"
+					style="font-family: 'Noto Serif JP', serif;"
+				>
+					<ShieldCheck size={19} /> 管理
 				</a>
 			{/if}
 		</nav>
 	{/if}
+
 </div>
+
+<style>
+	.nav-link.active {
+		color: #e8d5a3;
+	}
+	.nav-link.active::after {
+		transform: scaleX(1);
+	}
+</style>
