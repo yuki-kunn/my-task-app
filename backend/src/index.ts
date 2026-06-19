@@ -491,6 +491,13 @@ app.post('/api/ai/parse', async (c) => {
   if (!text?.trim()) {
     return c.json({ success: false, message: 'テキストを入力してください' }, 400);
   }
+  const INPUT_LIMIT = mode === 'organize' ? 1000 : 200;
+  if (text.length > INPUT_LIMIT) {
+    return c.json({
+      success: false,
+      message: `入力が長すぎます（${text.length}文字）。${INPUT_LIMIT}文字以内にしてください。`,
+    }, 400);
+  }
   const nowJst = new Date(Date.now() + JST_OFFSET_MS).toISOString().slice(0, 16).replace('T', ' ');
   const systemPrompt = mode === 'organize'
     ? `あなたはタスク・予定管理AIです。ユーザーの入力から複数のタスクまたは予定を抽出し、整理してJSON配列で返してください。

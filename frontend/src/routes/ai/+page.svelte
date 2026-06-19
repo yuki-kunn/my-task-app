@@ -16,6 +16,9 @@
 	let usedCount = $state<number | null>(null);
 	let dailyLimit = $state<number | null>(null);
 
+	const INPUT_LIMIT = $derived(mode === 'organize' ? 1000 : 200);
+	const inputOver = $derived(inputText.length > INPUT_LIMIT);
+
 	const remaining = $derived(
 		dailyLimit !== null && usedCount !== null ? dailyLimit - usedCount : null
 	);
@@ -141,11 +144,17 @@
 		<textarea
 			bind:value={inputText}
 			rows={4}
-			class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none text-sm"
+			class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none text-sm
+				{inputOver ? 'border-red-400 focus:ring-red-400' : ''}"
 			placeholder={mode === 'simple'
 				? '例: 明日15時に歯医者の予約'
 				: '例: 月曜に資料作成、水曜に会議（14〜15時）、金曜までにメール返信'}
 		></textarea>
+		<div class="flex justify-end mt-1">
+			<span class="text-xs {inputOver ? 'text-red-500 font-medium' : 'text-gray-400'}">
+				{inputText.length} / {INPUT_LIMIT}
+			</span>
+		</div>
 
 		{#if errorMsg}
 			<p class="text-red-500 text-sm mt-2">{errorMsg}</p>
@@ -156,7 +165,7 @@
 
 		<button
 			onclick={parse}
-			disabled={parsing || limitReached}
+			disabled={parsing || limitReached || inputOver}
 			class="mt-3 w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
 		>
 			{#if parsing}
