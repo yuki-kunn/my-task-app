@@ -16,7 +16,7 @@
 	let usedCount = $state<number | null>(null);
 	let dailyLimit = $state<number | null>(null);
 
-	const INPUT_LIMIT = $derived(mode === 'organize' ? 1000 : 200);
+	const INPUT_LIMIT = $derived(mode === 'organize' ? 500 : 200);
 	const inputOver = $derived(inputText.length > INPUT_LIMIT);
 
 	const remaining = $derived(
@@ -120,7 +120,7 @@
 		{#if limitReached}
 			<div class="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">
 				<span class="text-red-500 shrink-0 mt-0.5">⚠</span>
-				<p class="text-sm text-red-700">本日のAI利用上限（{dailyLimit}回）に達しました。明日0時（JST）にリセットされます。</p>
+				<p class="text-sm text-red-700">本日のAI利用上限（{dailyLimit}回）に達しました。0時（JST）にリセットされます。</p>
 			</div>
 		{/if}
 

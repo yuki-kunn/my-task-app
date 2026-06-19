@@ -453,7 +453,7 @@ app.post('/api/events/:id/complete', async (c) => {
 
 // --- AI Parse ----------------------------------------------------------------
 
-const AI_DAILY_LIMIT = parseInt(process.env.AI_DAILY_LIMIT ?? '10', 10);
+const AI_DAILY_LIMIT = parseInt(process.env.AI_DAILY_LIMIT ?? '5', 10);
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function jstDateString(): string {
@@ -491,7 +491,7 @@ app.post('/api/ai/parse', async (c) => {
   if (!text?.trim()) {
     return c.json({ success: false, message: 'テキストを入力してください' }, 400);
   }
-  const INPUT_LIMIT = mode === 'organize' ? 1000 : 200;
+  const INPUT_LIMIT = mode === 'organize' ? 500 : 200;
   if (text.length > INPUT_LIMIT) {
     return c.json({
       success: false,
