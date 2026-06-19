@@ -13,21 +13,26 @@ export function isPushConfigured() {
   return !!(vapidPublicKey && vapidPrivateKey);
 }
 
-export async function sendNotificationToAll(payload: { title: string; body: string; url?: string }) {
+// 特定ユーザーにのみ通知を送る
+export async function sendNotificationToUser(
+  userId: string,
+  payload: { title: string; body: string; url?: string }
+) {
   if (!isPushConfigured()) return;
 
-  const [rows] = await pool.query<any[]>('SELECT id, endpoint, p256dh, auth FROM push_subscriptions');
+  const [rows] = await pool.query<any[]>(
+    'SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?',
+    [userId]
+  );
 
   await Promise.all(
     rows.map(async (row) => {
-      const subscription = {
-        endpoint: row.endpoint,
-        keys: { p256dh: row.p256dh, auth: row.auth },
-      };
       try {
-        await webpush.sendNotification(subscription, JSON.stringify(payload));
+        await webpush.sendNotification(
+          { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
+          JSON.stringify(payload)
+        );
       } catch (err: any) {
-        // Subscription is no longer valid (e.g. user unsubscribed/uninstalled) - remove it.
         if (err?.statusCode === 404 || err?.statusCode === 410) {
           await pool.query('DELETE FROM push_subscriptions WHERE id = ?', [row.id]);
         } else {
