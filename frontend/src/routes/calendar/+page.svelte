@@ -6,6 +6,7 @@
 	import { fetchTasks, fetchEvents, ApiError } from '$lib/api';
 	import { formatDeadline } from '$lib/deadline';
 	import { TASK_DOT_COLOR, EVENT_DOT_COLOR, TASK_COLOR_CLASSES, EVENT_COLOR_CLASSES } from '$lib/colors';
+	import { REPEAT_LABEL } from '$lib/utils';
 	import type { Task, Event } from '$lib/types';
 
 	let tasks: Task[] = $state([]);
@@ -90,12 +91,6 @@
 		sessionStorage.setItem('calendar_return_date', selectedDateStr);
 		goto('/task');
 	}
-
-	const REPEAT_LABEL: Record<string, string> = {
-		daily: '毎日',
-		weekly: '毎週',
-		yearly: '毎年'
-	};
 
 	const filteredTasks = $derived(tasks.filter((t) => t.deadline.startsWith(selectedDateStr)));
 	const filteredEvents = $derived(events.filter((e) => e.start_dt.startsWith(selectedDateStr)));

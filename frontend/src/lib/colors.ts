@@ -39,3 +39,17 @@ export const EVENT_DOT_COLOR: Record<string, string> = {
 	indigo: 'bg-indigo-400',
 	pink:   'bg-pink-400',
 };
+
+/** Returns the border-accent CSS class for a card, based on color and type. */
+export function getColorClass(color: string | null | undefined, type: 'task' | 'event'): string {
+	if (!color) return '';
+	const map = type === 'task' ? TASK_COLOR_CLASSES : EVENT_COLOR_CLASSES;
+	return map[color] ?? '';
+}
+
+/** Returns the dot CSS class for a calendar indicator, based on color and type. */
+export function getDotClass(color: string | null | undefined, type: 'task' | 'event'): string {
+	if (!color) return '';
+	const map = type === 'task' ? TASK_DOT_COLOR : EVENT_DOT_COLOR;
+	return map[color] ?? '';
+}

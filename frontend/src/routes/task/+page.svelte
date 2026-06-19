@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { createTask, updateTask, createEvent, updateEvent, ApiError } from '$lib/api';
+	import { JST_OFFSET_MS } from '$lib/deadline';
 	import type { RepeatType, Task, Event } from '$lib/types';
 	import ColorPicker from '$lib/components/ColorPicker.svelte';
 
@@ -32,8 +33,6 @@
 		if (calendarReturnDate) {
 			returnTo = `/calendar?date=${calendarReturnDate}`;
 		}
-
-		const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 		if (editTask) {
 			const task: Task = JSON.parse(editTask);
