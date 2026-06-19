@@ -158,6 +158,12 @@
 			placeholder={mode === 'simple'
 				? '例: 明日15時に歯医者の予約'
 				: '例: 月曜に資料作成、水曜に会議（14〜15時）、金曜までにメール返信'}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' && e.ctrlKey && !parsing && !limitReached && !inputOver) {
+					e.preventDefault();
+					parse();
+				}
+			}}
 		></textarea>
 		<div class="flex justify-end mt-1">
 			<span class="text-xs {inputOver ? 'text-red-500 font-medium' : 'text-gray-400'}">
@@ -181,6 +187,7 @@
 				<Loader size={18} class="animate-spin" /> 解析中...
 			{:else}
 				<Sparkles size={18} /> AIで解析
+				<span class="hidden md:inline text-indigo-300 text-xs font-normal ml-1">Ctrl+Enter</span>
 			{/if}
 		</button>
 
