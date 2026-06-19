@@ -34,6 +34,7 @@ export default defineConfig({
 			srcDir: 'src',
 			filename: 'service-worker.ts',
 			injectManifest: {
+				swSrc: 'src/service-worker.ts',
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
 			},
 			devOptions: {
