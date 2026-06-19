@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { LogOut, ShieldAlert, Bell } from 'lucide-svelte';
-	import { changePassword, clearToken, ApiError } from '$lib/api';
+	import { LogOut, ShieldAlert, Bell, User } from 'lucide-svelte';
+	import { changePassword, fetchMe, clearToken, ApiError } from '$lib/api';
 	import {
 		isPushSupported,
 		getPushSubscription,
@@ -15,12 +15,19 @@
 	let errorMsg = $state('');
 	let saving = $state(false);
 
+	let myEmail = $state<string | null>(null);
+
 	let pushSupported = $state(false);
 	let pushEnabled = $state(false);
 	let pushBusy = $state(false);
 	let pushError = $state('');
 
 	onMount(async () => {
+		try {
+			const me = await fetchMe();
+			myEmail = me.email;
+		} catch { /* ignore */ }
+
 		pushSupported = isPushSupported();
 		if (pushSupported) {
 			const sub = await getPushSubscription();
@@ -50,8 +57,8 @@
 		successMsg = '';
 		errorMsg = '';
 
-		if (newPassword.length < 4) {
-			errorMsg = 'パスワードは4文字以上にしてください';
+		if (newPassword.length < 8) {
+			errorMsg = 'パスワードは8文字以上にしてください';
 			return;
 		}
 		if (newPassword !== confirmPassword) {
@@ -80,6 +87,13 @@
 
 <div class="max-w-md mx-auto space-y-6 mt-6">
 	<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+		<h2 class="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
+			<User size={20} class="text-indigo-600" /> アカウント情報
+		</h2>
+		<p class="text-sm text-gray-500">メールアドレス</p>
+		<p class="text-gray-800 font-medium mt-0.5">{myEmail ?? '（未設定）'}</p>
+	</div>
+	<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
 		<h2 class="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
 			<ShieldAlert size={20} class="text-indigo-600" /> セキュリティ設定
 		</h2>
@@ -92,7 +106,7 @@
 					bind:value={newPassword}
 					class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 					required
-					minlength="4"
+					minlength="8"
 				/>
 			</div>
 			<div>
@@ -103,7 +117,7 @@
 					bind:value={confirmPassword}
 					class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 					required
-					minlength="4"
+					minlength="8"
 				/>
 			</div>
 			{#if successMsg}
@@ -150,7 +164,9 @@
 	</div>
 
 	<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-		<h2 class="text-lg font-bold text-gray-800 mb-4">アカウント</h2>
+		<h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+			<LogOut size={20} class="text-red-500" /> ログアウト
+		</h2>
 		<button
 			onclick={handleLogout}
 			class="w-full flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2.5 rounded-lg font-semibold hover:bg-red-100 transition border border-red-200"

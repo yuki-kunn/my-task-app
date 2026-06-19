@@ -48,15 +48,41 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 	return res.json() as Promise<T>;
 }
 
-export async function login(password: string) {
-	const res = await fetch(`${API_URL}/login`, {
+export async function login(email: string, password: string) {
+	const res = await fetch(`${API_URL}/auth/login`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ password })
+		body: JSON.stringify({ email, password })
 	});
 	const data = await res.json();
-	if (!data.success) throw new ApiError(data.message ?? 'パスワードが違います');
+	if (!data.success) throw new ApiError(data.message ?? 'メールアドレスまたはパスワードが違います');
 	setToken(data.token);
+}
+
+export async function requestVerificationCode(email: string): Promise<{ fallback: boolean; code?: string }> {
+	const res = await fetch(`${API_URL}/auth/register`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ email })
+	});
+	const data = await res.json();
+	if (!data.success) throw new ApiError(data.message ?? '登録に失敗しました');
+	return { fallback: data.fallback, code: data.code };
+}
+
+export async function verifyAndRegister(email: string, code: string) {
+	const res = await fetch(`${API_URL}/auth/verify`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ email, code })
+	});
+	const data = await res.json();
+	if (!data.success) throw new ApiError(data.message ?? '認証に失敗しました');
+	setToken(data.token);
+}
+
+export function fetchMe() {
+	return request<{ email: string | null }>('/settings/me');
 }
 
 export async function changePassword(newPassword: string) {

@@ -14,7 +14,8 @@
 		// Re-check on every navigation so logging in updates the nav bar without a reload.
 		page.url.pathname;
 		isAuthenticated = !!getToken();
-		if (!isAuthenticated && page.url.pathname !== '/') {
+		const publicPaths = ['/', '/register'];
+		if (!isAuthenticated && !publicPaths.includes(page.url.pathname)) {
 			goto('/');
 		}
 		checked = true;
@@ -34,7 +35,7 @@
 		<header
 			class="hidden md:flex bg-indigo-600 text-white justify-between items-center px-6 py-4 shadow-md"
 		>
-			<h1 class="text-xl font-bold tracking-wider">YukiTask</h1>
+			<h1 class="text-xl font-bold tracking-wider">Tasqa</h1>
 			<nav class="flex gap-6 items-center">
 				<a href="/dashboard" class="flex items-center gap-1 hover:text-indigo-200">
 					<CheckSquare size={18} /> ダッシュボード
