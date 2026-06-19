@@ -99,6 +99,12 @@
 			<p class="text-sm text-gray-600">
 				<span class="font-medium">{email}</span> 宛に6桁の認証コードを送信しました。
 			</p>
+			{#if !fallbackCode}
+				<div class="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
+					<span class="mt-0.5 shrink-0">📬</span>
+					<p>メールが届かない場合は、<span class="font-medium text-gray-700">迷惑メールフォルダ</span>をご確認ください。それでも届かない場合は下の「再送信」をお試しください。</p>
+				</div>
+			{/if}
 			{#if fallbackCode}
 				<div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
 					<p class="text-amber-700 font-medium mb-1">
