@@ -14,8 +14,9 @@
 	let errorMsg = $state('');
 	let successMsg = $state('');
 	let candidates = $state<Candidate[]>([]);
-	let usedCount = $state<number | null>(null);
-	let dailyLimit = $state<number | null>(null);
+	let usedCount = $state<number | null>(0);
+	let dailyLimit = $state<number | null>(5);
+	let usageLoaded = $state(false);
 
 	const INPUT_LIMIT = $derived(mode === 'organize' ? 500 : 200);
 	const inputOver = $derived(inputText.length > INPUT_LIMIT);
@@ -23,9 +24,11 @@
 	onMount(async () => {
 		try {
 			const res = await fetchAiUsage();
-			if (res.used !== null) usedCount = res.used;
-			if (res.limit !== null) dailyLimit = res.limit;
+			// 管理者は null が返る（制限なし）
+			usedCount = res.used;
+			dailyLimit = res.limit;
 		} catch { /* ignore */ }
+		usageLoaded = true;
 	});
 
 	const remaining = $derived(
@@ -113,15 +116,15 @@
 				<Sparkles size={22} class="text-indigo-500" />
 				<h2 class="text-xl font-bold text-gray-800">AI登録</h2>
 			</div>
-			<!-- 残回数バッジ -->
+			<!-- 残回数バッジ（管理者=null は非表示、一般ユーザーは常時表示） -->
 			{#if dailyLimit !== null && usedCount !== null}
 				<span class="text-xs px-2.5 py-1 rounded-full font-medium
 					{limitReached
 						? 'bg-red-100 text-red-600'
-						: remaining !== null && remaining <= 3
+						: remaining !== null && remaining <= 2
 							? 'bg-amber-100 text-amber-700'
 							: 'bg-indigo-50 text-indigo-500'}">
-					本日 {usedCount}/{dailyLimit} 回使用
+					本日 {usedCount} / {dailyLimit} 回
 				</span>
 			{/if}
 		</div>
@@ -193,7 +196,7 @@
 
 		{#if dailyLimit !== null && !limitReached}
 			<p class="text-center text-xs text-gray-400 mt-2">
-				本日残り {remaining} 回使用できます（上限 {dailyLimit} 回/日）
+				本日残り <span class="{remaining !== null && remaining <= 2 ? 'text-amber-500 font-medium' : ''}">{remaining} 回</span>使用できます（上限 {dailyLimit} 回/日）
 			</p>
 		{/if}
 	</div>
