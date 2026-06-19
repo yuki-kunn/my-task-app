@@ -85,21 +85,21 @@
 		<nav
 			class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-50 shadow-lg"
 		>
-			<a href="/dashboard" class="flex-1 flex flex-col items-center justify-center py-3 text-xs text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
-				<CheckSquare size={22} class="mb-1" /> ダッシュボード
+			<a href="/dashboard" class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
+				<CheckSquare size={20} /> タスク
 			</a>
-			<a href="/calendar" class="flex-1 flex flex-col items-center justify-center py-3 text-xs text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
-				<Calendar size={22} class="mb-1" /> カレンダー
+			<a href="/calendar" class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
+				<Calendar size={20} /> カレンダー
 			</a>
-			<a href="/ai" class="flex-1 flex flex-col items-center justify-center py-3 text-xs text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
-				<Sparkles size={22} class="mb-1" /> AI
+			<a href="/ai" class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
+				<Sparkles size={20} /> AI
 			</a>
-			<a href="/settings" class="flex-1 flex flex-col items-center justify-center py-3 text-xs text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
-				<Settings size={22} class="mb-1" /> 設定
+			<a href="/settings" class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] text-gray-600 hover:text-indigo-600 hover:bg-indigo-50">
+				<Settings size={20} /> 設定
 			</a>
 			{#if isAdmin}
-				<a href="/admin" class="flex-1 flex flex-col items-center justify-center py-3 text-xs text-indigo-600 hover:bg-indigo-50">
-					<ShieldCheck size={22} class="mb-1" /> 管理
+				<a href="/admin" class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] text-indigo-600 hover:bg-indigo-50">
+					<ShieldCheck size={20} /> 管理
 				</a>
 			{/if}
 		</nav>
