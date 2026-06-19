@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import bcrypt from 'bcryptjs';
+import { Resend } from 'resend';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { pool, initDB } from './db.js';
 import { authMiddleware, createSessionToken } from './auth.js';
@@ -91,11 +92,25 @@ app.post('/api/auth/register', async (c) => {
     [crypto.randomUUID(), normalized, code, toMysqlDatetime(expiresAt)]
   );
 
-  // In production with Resend configured, send the email here.
-  // Without Resend, return the code in the response (development/fallback mode).
-  const hasResend = !!process.env.RESEND_API_KEY;
-  if (hasResend) {
-    // TODO: send via Resend when API key is available.
+  if (process.env.RESEND_API_KEY) {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+      from: process.env.RESEND_FROM ?? 'Tasqa <onboarding@resend.dev>',
+      to: normalized,
+      subject: 'Tasqa 認証コード',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+          <h2 style="color:#4f46e5">Tasqa 認証コード</h2>
+          <p>以下の6桁のコードを入力してアカウントを作成してください。</p>
+          <p style="font-size:2rem;font-weight:bold;letter-spacing:.5rem;color:#1e1e2e;margin:24px 0">${code}</p>
+          <p style="color:#6b7280;font-size:.875rem">このコードは10分間有効です。心当たりがない場合は無視してください。</p>
+        </div>
+      `,
+    });
+    if (error) {
+      console.error('Resend error:', error);
+      return c.json({ success: false, message: 'メール送信に失敗しました。しばらく後に再試行してください' }, 500);
+    }
     return c.json({ success: true, fallback: false });
   }
 
