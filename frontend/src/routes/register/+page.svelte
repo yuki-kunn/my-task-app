@@ -121,9 +121,9 @@
 					id="code"
 					type="text"
 					inputmode="numeric"
-					pattern="[0-9]{6}"
 					maxlength="6"
 					bind:value={code}
+					oninput={(e) => { code = (e.currentTarget as HTMLInputElement).value.replace(/\D/g, '').slice(0, 6); }}
 					class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-center font-mono text-xl tracking-widest"
 					placeholder="000000"
 					required
