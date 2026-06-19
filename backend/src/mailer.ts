@@ -1,14 +1,4 @@
-import nodemailer from 'nodemailer';
-
-function getTransporter() {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) return null;
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user, pass },
-  });
-}
+import sgMail from '@sendgrid/mail';
 
 function buildVerificationEmail(code: string): string {
   return `<!DOCTYPE html>
@@ -75,24 +65,31 @@ function buildVerificationEmail(code: string): string {
 </html>`;
 }
 
-export async function sendVerificationEmail(to: string, code: string): Promise<{ ok: boolean; fallback: boolean; error?: string }> {
-  const transporter = getTransporter();
+export async function sendVerificationEmail(
+  to: string,
+  code: string,
+): Promise<{ ok: boolean; fallback: boolean; error?: string }> {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const from = process.env.SENDGRID_FROM;
 
-  if (!transporter) {
-    // Gmail未設定 → フォールバック
+  if (!apiKey || !from) {
+    // 未設定 → フォールバック（画面にコード表示）
     return { ok: true, fallback: true };
   }
 
+  sgMail.setApiKey(apiKey);
+
   try {
-    await transporter.sendMail({
-      from: `"Tasqa" <${process.env.GMAIL_USER}>`,
+    await sgMail.send({
       to,
+      from,
       subject: `【Tasqa】認証コード: ${code}`,
       html: buildVerificationEmail(code),
     });
     return { ok: true, fallback: false };
   } catch (err: any) {
-    console.error('Nodemailer error:', err?.message ?? err);
-    return { ok: false, fallback: true, error: err?.message ?? String(err) };
+    const message = err?.response?.body?.errors?.[0]?.message ?? err?.message ?? String(err);
+    console.error('SendGrid error:', message);
+    return { ok: false, fallback: true, error: message };
   }
 }
