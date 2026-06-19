@@ -475,18 +475,33 @@ app.post('/api/ai/parse', async (c) => {
 以下の形式で返すこと:
 {"type":"task"|"event","title":"...","deadline":"YYYY-MM-DDTHH:MM"(task),"start_dt":"..."(event),"end_dt":"..."(event),"memo":"...","repeat_type":"none"|"daily"|"weekly"|"yearly"}
 必ずJSONオブジェクトのみ返すこと。`;
-  try {
-    const genai = new GoogleGenerativeAI(apiKey);
-    const model = genai.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const result = await model.generateContent(`${systemPrompt}\n\nユーザー入力: ${text}`);
-    const raw = result.response.text().trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
-    const parsed = JSON.parse(raw);
-    const items = Array.isArray(parsed) ? parsed : [parsed];
-    return c.json({ success: true, items });
-  } catch (err) {
-    console.error('Gemini parse error:', err);
-    return c.json({ success: false, message: 'AI解析に失敗しました' }, 500);
+  const prompt = `${systemPrompt}\n\nユーザー入力: ${text}`;
+  const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+  const genai = new GoogleGenerativeAI(apiKey);
+  let lastErr: unknown;
+  for (const modelName of models) {
+    try {
+      const model = genai.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const raw = result.response.text().trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
+      const parsed = JSON.parse(raw);
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      return c.json({ success: true, items });
+    } catch (err: any) {
+      lastErr = err;
+      if (err?.status === 503) {
+        console.warn(`${modelName} 503、次のモデルを試みます`);
+        continue;
+      }
+      break;
+    }
   }
+  console.error('Gemini parse error:', lastErr);
+  const is503 = (lastErr as any)?.status === 503;
+  return c.json(
+    { success: false, message: is503 ? 'AIが混雑しています。しばらくしてから再試行してください。' : 'AI解析に失敗しました' },
+    is503 ? 503 : 500
+  );
 });
 
 // --- Push notifications ------------------------------------------------------
