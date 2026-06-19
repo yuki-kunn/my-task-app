@@ -3,6 +3,7 @@ import type { Task, Event, AiItem } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 const TOKEN_KEY = 'task_token';
+const PW_DEFAULT_KEY = 'task_pw_default';
 
 export function getToken(): string | null {
 	if (typeof localStorage === 'undefined') return null;
@@ -15,6 +16,21 @@ export function setToken(token: string) {
 
 export function clearToken() {
 	localStorage.removeItem(TOKEN_KEY);
+	localStorage.removeItem(PW_DEFAULT_KEY);
+}
+
+export function getPasswordIsDefault(): boolean {
+	if (typeof localStorage === 'undefined') return false;
+	return localStorage.getItem(PW_DEFAULT_KEY) === 'true';
+}
+
+export function setPasswordIsDefault(value: boolean) {
+	if (typeof localStorage === 'undefined') return;
+	if (value) {
+		localStorage.setItem(PW_DEFAULT_KEY, 'true');
+	} else {
+		localStorage.removeItem(PW_DEFAULT_KEY);
+	}
 }
 
 export class ApiError extends Error {}
@@ -48,7 +64,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 	return res.json() as Promise<T>;
 }
 
-export async function login(email: string, password: string): Promise<{ role: string }> {
+export async function login(email: string, password: string): Promise<{ role: string; passwordIsDefault: boolean }> {
 	const res = await fetch(`${API_URL}/auth/login`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -57,7 +73,8 @@ export async function login(email: string, password: string): Promise<{ role: st
 	const data = await res.json();
 	if (!data.success) throw new ApiError(data.message ?? 'メールアドレスまたはパスワードが違います');
 	setToken(data.token);
-	return { role: data.role ?? 'user' };
+	setPasswordIsDefault(data.passwordIsDefault ?? false);
+	return { role: data.role ?? 'user', passwordIsDefault: data.passwordIsDefault ?? false };
 }
 
 export async function checkAdminExists(): Promise<boolean> {
@@ -97,6 +114,7 @@ export async function changePassword(newPassword: string) {
 		method: 'PUT',
 		body: JSON.stringify({ newPassword })
 	});
+	setPasswordIsDefault(false);
 }
 
 export function fetchTasks() {

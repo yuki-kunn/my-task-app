@@ -3,12 +3,13 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { CheckSquare, Calendar, Settings, LogOut, Sparkles, ShieldCheck } from 'lucide-svelte';
-	import { getToken, clearToken, fetchMe } from '$lib/api';
+	import { getToken, clearToken, fetchMe, getPasswordIsDefault } from '$lib/api';
 
 	let { children } = $props();
 
 	let isAuthenticated = $state(false);
 	let isAdmin = $state(false);
+	let mustChangePassword = $state(false);
 	let checked = $state(false);
 
 	$effect(() => {
@@ -17,11 +18,16 @@
 		const publicPaths = ['/', '/register'];
 		if (!isAuthenticated && !publicPaths.includes(page.url.pathname)) {
 			goto('/');
+			return;
+		}
+		// 初期パスワードのままなら設定ページ以外へのアクセスを遮断
+		mustChangePassword = isAuthenticated ? getPasswordIsDefault() : false;
+		if (mustChangePassword && page.url.pathname !== '/settings') {
+			goto('/settings');
 		}
 		checked = true;
 	});
 
-	// Fetch role when authenticated (once per session is enough; re-fetch on path change).
 	$effect(() => {
 		page.url.pathname;
 		if (isAuthenticated) {
@@ -34,6 +40,7 @@
 	function logout() {
 		clearToken();
 		isAuthenticated = false;
+		mustChangePassword = false;
 		goto('/');
 	}
 

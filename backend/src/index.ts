@@ -202,7 +202,9 @@ app.post('/api/auth/login', async (c) => {
   // Reset attempts on success.
   await pool.query('UPDATE users SET login_attempts = 0, locked_until = NULL WHERE id = ?', [user.id]);
   const token = await createSessionToken(user.id, user.role ?? 'user');
-  return c.json({ success: true, token, role: user.role ?? 'user' });
+  // 初期パスワード "pass" のままかチェック（強制変更フロー用）
+  const passwordIsDefault = await bcrypt.compare('pass', user.password_hash);
+  return c.json({ success: true, token, role: user.role ?? 'user', passwordIsDefault });
 });
 
 // --- Protected routes --------------------------------------------------------
