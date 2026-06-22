@@ -7,12 +7,14 @@
 		type: 'task' | 'event';
 		title: string;
 		dotClass: string;
+		dotStyle?: string;
 		repeatType: string;
 		// task-specific
 		isCompleted?: boolean;
 		deadline?: string;
 		deadlineStyle?: string;
 		colorClass?: string;
+		cardStyle?: string;
 		onToggle?: () => void;
 		// event-specific
 		startDt?: string;
@@ -27,11 +29,13 @@
 		type,
 		title,
 		dotClass,
+		dotStyle = '',
 		repeatType,
 		isCompleted = false,
 		deadline = '',
 		deadlineStyle = '',
 		colorClass = '',
+		cardStyle = '',
 		onToggle,
 		startDt = '',
 		endDt = '',
@@ -43,10 +47,13 @@
 	const computedDeadlineStyle = $derived(
 		type === 'task' && deadline ? getDeadlineStyle(deadline, isCompleted) : deadlineStyle
 	);
+	const mergedStyle = $derived(
+		[computedDeadlineStyle, cardStyle].filter(Boolean).join('; ')
+	);
 </script>
 
 <div
-	style={computedDeadlineStyle}
+	style={mergedStyle}
 	class="flex items-center justify-between p-4 rounded-xl bg-white shadow-sm border border-gray-100 transition
 		{type === 'task' ? 'cursor-grab active:cursor-grabbing' : ''}
 		{colorClass}"
@@ -63,8 +70,8 @@
 		{/if}
 		<div class="truncate flex-1">
 			<p class="font-semibold text-gray-800 truncate {isCompleted && type === 'task' ? 'line-through text-gray-400' : ''} flex items-center gap-1.5">
-				{#if dotClass}
-					<span class="shrink-0 w-2.5 h-2.5 rounded-full {dotClass}"></span>
+				{#if dotClass || dotStyle}
+					<span class="shrink-0 w-2.5 h-2.5 rounded-full {dotClass}" style={dotStyle}></span>
 				{/if}
 				{title}
 			</p>

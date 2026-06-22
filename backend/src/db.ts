@@ -189,6 +189,17 @@ export async function initDB() {
         UNIQUE KEY uq_user_date (user_id, used_date)
       )
     `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS user_colors (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
+        hex CHAR(7) NOT NULL,
+        name VARCHAR(50) NOT NULL DEFAULT '',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_user_colors_user (user_id)
+      )
+    `);
   } finally {
     connection.release();
   }

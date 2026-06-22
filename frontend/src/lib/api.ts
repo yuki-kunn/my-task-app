@@ -197,6 +197,29 @@ export function unsubscribePush(endpoint: string) {
 	});
 }
 
+// --- User colors -------------------------------------------------------------
+
+export interface UserColor {
+	id: string;
+	hex: string;
+	name: string;
+}
+
+export function fetchUserColors() {
+	return request<UserColor[]>('/colors');
+}
+
+export function addUserColor(hex: string, name: string) {
+	return request<{ success: boolean; id: string; hex: string; name: string }>('/colors', {
+		method: 'POST',
+		body: JSON.stringify({ hex, name })
+	});
+}
+
+export function deleteUserColor(id: string) {
+	return request<{ success: boolean }>(`/colors/${id}`, { method: 'DELETE' });
+}
+
 // --- Admin -------------------------------------------------------------------
 
 export interface AdminUser {

@@ -4,7 +4,8 @@
 	import { flip } from 'svelte/animate';
 	import { Plus } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
-	import { fetchTasks, updateTask, deleteTask, reorderTasks, fetchEvents, deleteEvent, ApiError } from '$lib/api';
+	import { fetchTasks, updateTask, deleteTask, reorderTasks, fetchEvents, deleteEvent, fetchUserColors, ApiError } from '$lib/api';
+	import type { UserColor } from '$lib/api';
 	import type { Task, Event } from '$lib/types';
 	import TaskCard from '$lib/components/TaskCard.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
@@ -14,6 +15,7 @@
 	let tab = $state<Tab>('task');
 	let tasks: Task[] = $state([]);
 	let events: Event[] = $state([]);
+	let userColors = $state<UserColor[]>([]);
 	let loading = $state(true);
 	let errorMsg = $state('');
 	const flipDurationMs = 200;
@@ -24,7 +26,10 @@
 		loading = true;
 		errorMsg = '';
 		try {
-			[tasks, events] = await Promise.all([fetchTasks(), fetchEvents()]);
+			[[tasks, events], userColors] = await Promise.all([
+				Promise.all([fetchTasks(), fetchEvents()]),
+				fetchUserColors().catch(() => [])
+			]);
 		} catch (err) {
 			errorMsg = err instanceof ApiError ? err.message : 'データの取得に失敗しました';
 		} finally {
@@ -137,7 +142,7 @@
 			>
 				{#each tasks as task (task.id)}
 					<div animate:flip={{ duration: flipDurationMs }}>
-						<TaskCard {task} onToggle={toggleComplete} onEdit={editTask} onDelete={removeTask} />
+						<TaskCard {task} {userColors} onToggle={toggleComplete} onEdit={editTask} onDelete={removeTask} />
 					</div>
 				{/each}
 			</section>
@@ -148,7 +153,7 @@
 		{:else}
 			<div class="space-y-3">
 				{#each events as event (event.id)}
-					<EventCard {event} onEdit={editEvent} onDelete={removeEvent} />
+					<EventCard {event} {userColors} onEdit={editEvent} onDelete={removeEvent} />
 				{/each}
 			</div>
 		{/if}

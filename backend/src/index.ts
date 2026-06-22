@@ -13,6 +13,7 @@ import eventsRouter from './routes/events.js';
 import settingsRouter from './routes/settings.js';
 import adminRouter from './routes/admin.js';
 import aiRouter from './routes/ai.js';
+import colorsRouter from './routes/colors.js';
 
 type Variables = { userId: string; userRole: string };
 const app = new Hono<{ Variables: Variables }>();
@@ -48,6 +49,10 @@ app.route('/api/events', eventsRouter);
 
 app.use('/api/ai/*', authMiddleware);
 app.route('/api/ai', aiRouter);
+
+app.use('/api/colors', authMiddleware);
+app.use('/api/colors/*', authMiddleware);
+app.route('/api/colors', colorsRouter);
 
 app.use('/api/admin/*', adminMiddleware);
 app.route('/api/admin', adminRouter);

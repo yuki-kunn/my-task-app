@@ -1,7 +1,8 @@
 ﻿<script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { createTask, updateTask, createEvent, updateEvent, ApiError } from '$lib/api';
+	import { createTask, updateTask, createEvent, updateEvent, fetchUserColors, addUserColor, deleteUserColor, ApiError } from '$lib/api';
+	import type { UserColor } from '$lib/api';
 	import { JST_OFFSET_MS } from '$lib/deadline';
 	import type { RepeatType, Task, Event } from '$lib/types';
 	import ColorPicker from '$lib/components/ColorPicker.svelte';
@@ -23,8 +24,10 @@
 	let errorMsg = $state('');
 	let saving = $state(false);
 	let returnTo = $state('/dashboard');
+	let userColors = $state<UserColor[]>([]);
 
-	onMount(() => {
+	onMount(async () => {
+		userColors = await fetchUserColors().catch(() => []);
 		const editTask = sessionStorage.getItem('edit_task');
 		const editEvent = sessionStorage.getItem('edit_event');
 		const queryDate = sessionStorage.getItem('calendar_target_date');
@@ -239,7 +242,19 @@
 			</div>
 		{/if}
 
-		<ColorPicker bind:value={color} type={mode} />
+		<ColorPicker
+			bind:value={color}
+			type={mode}
+			{userColors}
+			onAddColor={async (hex, name) => {
+				const res = await addUserColor(hex, name);
+				userColors = [...userColors, { id: res.id, hex: res.hex, name: res.name }];
+			}}
+			onDeleteColor={async (id) => {
+				await deleteUserColor(id);
+				userColors = userColors.filter((c) => c.id !== id);
+			}}
+		/>
 
 		<div>
 			<label class="block text-sm font-medium text-gray-700 mb-1" for="repeat">繰り返し設定</label>

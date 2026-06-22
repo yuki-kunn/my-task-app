@@ -3,7 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { ChevronLeft, ChevronRight, Plus, Clock, RotateCw, Edit, FileText } from 'lucide-svelte';
-	import { fetchTasks, fetchEvents, ApiError } from '$lib/api';
+	import { fetchTasks, fetchEvents, fetchUserColors, ApiError } from '$lib/api';
+	import type { UserColor } from '$lib/api';
 	import { formatDeadline } from '$lib/deadline';
 	import { TASK_DOT_COLOR, EVENT_DOT_COLOR, TASK_COLOR_CLASSES, EVENT_COLOR_CLASSES } from '$lib/colors';
 	import { REPEAT_LABEL } from '$lib/utils';
@@ -11,6 +12,7 @@
 
 	let tasks: Task[] = $state([]);
 	let events: Event[] = $state([]);
+	let userColors = $state<UserColor[]>([]);
 	let currentYear = $state(0);
 	let currentMonth = $state(0);
 	let selectedDateStr = $state('');
@@ -32,12 +34,21 @@
 		loading = true;
 		errorMsg = '';
 		try {
-			[tasks, events] = await Promise.all([fetchTasks(), fetchEvents()]);
+			[[tasks, events], userColors] = await Promise.all([
+				Promise.all([fetchTasks(), fetchEvents()]),
+				fetchUserColors().catch(() => [])
+			]);
 		} catch (err) {
 			errorMsg = err instanceof ApiError ? err.message : 'データの取得に失敗しました';
 		} finally {
 			loading = false;
 		}
+	}
+
+	function resolveCustomHex(color: string | null | undefined, type: 'task' | 'event'): string | null {
+		if (!color?.startsWith('custom:')) return null;
+		const id = color.slice(7);
+		return userColors.find((c) => c.id === id)?.hex ?? null;
 	}
 
 	function toDateStr(date: Date) {
@@ -125,10 +136,18 @@
 					{day}
 					<span class="flex gap-0.5 absolute bottom-1">
 						{#each tasks.filter(t => t.deadline.startsWith(dateStrFor(day))).slice(0,3) as t}
-							<span class="w-1.5 h-1.5 rounded-full {t.color && TASK_DOT_COLOR[t.color] ? TASK_DOT_COLOR[t.color] : 'bg-red-400'}"></span>
+							{@const ch = resolveCustomHex(t.color, 'task')}
+							<span
+								class="w-1.5 h-1.5 rounded-full {ch ? '' : (t.color && TASK_DOT_COLOR[t.color] ? TASK_DOT_COLOR[t.color] : 'bg-red-400')}"
+								style={ch ? `background-color:${ch}` : ''}
+							></span>
 						{/each}
 						{#each events.filter(e => e.start_dt.startsWith(dateStrFor(day))).slice(0,2) as e}
-							<span class="w-1.5 h-1.5 rounded-full {e.color && EVENT_DOT_COLOR[e.color] ? EVENT_DOT_COLOR[e.color] : 'bg-violet-400'}"></span>
+							{@const ch = resolveCustomHex(e.color, 'event')}
+							<span
+								class="w-1.5 h-1.5 rounded-full {ch ? '' : (e.color && EVENT_DOT_COLOR[e.color] ? EVENT_DOT_COLOR[e.color] : 'bg-violet-400')}"
+								style={ch ? `background-color:${ch}` : ''}
+							></span>
 						{/each}
 					</span>
 				</button>
@@ -157,12 +176,19 @@
 			{:else}
 				<div class="space-y-2 max-h-[400px] overflow-y-auto">
 					{#each filteredTasks as task}
-						<div class="p-3 rounded-lg border text-sm
-							{task.color && TASK_COLOR_CLASSES[task.color] ? TASK_COLOR_CLASSES[task.color] : 'bg-gray-50 border-gray-200'}
-							{task.is_completed ? 'opacity-60' : ''}">
+						{@const tch = resolveCustomHex(task.color, 'task')}
+						<div
+							class="p-3 rounded-lg border text-sm
+								{tch ? '' : (task.color && TASK_COLOR_CLASSES[task.color] ? TASK_COLOR_CLASSES[task.color] : 'bg-gray-50 border-gray-200')}
+								{task.is_completed ? 'opacity-60' : ''}"
+							style={tch ? `background-color:${tch}22; border-left:3px solid ${tch}` : ''}
+						>
 							<div class="flex items-start justify-between gap-2">
 								<div class="flex items-start gap-1.5 flex-1 min-w-0">
-									<span class="mt-1 shrink-0 w-2.5 h-2.5 rounded-full {task.color && TASK_DOT_COLOR[task.color] ? TASK_DOT_COLOR[task.color] : 'bg-red-400'}"></span>
+									<span
+										class="mt-1 shrink-0 w-2.5 h-2.5 rounded-full {tch ? '' : (task.color && TASK_DOT_COLOR[task.color] ? TASK_DOT_COLOR[task.color] : 'bg-red-400')}"
+										style={tch ? `background-color:${tch}` : ''}
+									></span>
 									<p class="font-semibold text-gray-800 {task.is_completed ? 'line-through' : ''} break-words">
 										{task.title}
 									</p>
@@ -193,11 +219,18 @@
 					{/each}
 
 					{#each filteredEvents as event}
-						<div class="p-3 rounded-lg border text-sm
-							{event.color && EVENT_COLOR_CLASSES[event.color] ? EVENT_COLOR_CLASSES[event.color] : 'bg-violet-50 border-violet-100'}">
+						{@const ech = resolveCustomHex(event.color, 'event')}
+						<div
+							class="p-3 rounded-lg border text-sm
+								{ech ? '' : (event.color && EVENT_COLOR_CLASSES[event.color] ? EVENT_COLOR_CLASSES[event.color] : 'bg-violet-50 border-violet-100')}"
+							style={ech ? `background-color:${ech}22; border-left:3px solid ${ech}` : ''}
+						>
 							<div class="flex items-start justify-between gap-2">
 								<div class="flex items-start gap-1.5 flex-1 min-w-0">
-									<span class="mt-1 shrink-0 w-2.5 h-2.5 rounded-full {event.color && EVENT_DOT_COLOR[event.color] ? EVENT_DOT_COLOR[event.color] : 'bg-violet-400'}"></span>
+									<span
+										class="mt-1 shrink-0 w-2.5 h-2.5 rounded-full {ech ? '' : (event.color && EVENT_DOT_COLOR[event.color] ? EVENT_DOT_COLOR[event.color] : 'bg-violet-400')}"
+										style={ech ? `background-color:${ech}` : ''}
+									></span>
 									<p class="font-semibold text-gray-800 break-words">{event.title}</p>
 								</div>
 								<button
