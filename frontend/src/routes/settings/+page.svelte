@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { LogOut, ShieldAlert, Bell, User, KeyRound } from 'lucide-svelte';
-	import { changePassword, fetchMe, clearToken, getPasswordIsDefault, ApiError } from '$lib/api';
+	import { changePassword, fetchMe, updateDisplayName, clearToken, getPasswordIsDefault, ApiError } from '$lib/api';
 	import {
 		isPushSupported,
 		getPushSubscription,
@@ -19,6 +19,11 @@
 	let myEmail = $state<string | null>(null);
 	let mustChangePassword = $state(false);
 
+	let displayName = $state('');
+	let savingName = $state(false);
+	let nameSuccessMsg = $state('');
+	let nameErrorMsg = $state('');
+
 	let pushSupported = $state(false);
 	let pushEnabled = $state(false);
 	let pushBusy = $state(false);
@@ -29,6 +34,7 @@
 		try {
 			const me = await fetchMe();
 			myEmail = me.email;
+			displayName = me.displayName ?? '';
 		} catch { /* ignore */ }
 
 		pushSupported = isPushSupported();
@@ -86,6 +92,20 @@
 		}
 	}
 
+	async function handleSaveDisplayName() {
+		nameSuccessMsg = '';
+		nameErrorMsg = '';
+		savingName = true;
+		try {
+			await updateDisplayName(displayName.trim());
+			nameSuccessMsg = '表示名を更新しました。';
+		} catch (err) {
+			nameErrorMsg = err instanceof ApiError ? err.message : '更新に失敗しました';
+		} finally {
+			savingName = false;
+		}
+	}
+
 	function handleLogout() {
 		clearToken();
 		window.location.href = '/';
@@ -112,7 +132,34 @@
 				<User size={20} class="text-indigo-600" /> アカウント情報
 			</h2>
 			<p class="text-sm text-gray-500">メールアドレス</p>
-			<p class="text-gray-800 font-medium mt-0.5">{myEmail ?? '（未設定）'}</p>
+			<p class="text-gray-800 font-medium mt-0.5 mb-4">{myEmail ?? '（未設定）'}</p>
+
+			<form onsubmit={(e) => { e.preventDefault(); handleSaveDisplayName(); }} class="space-y-2">
+				<label class="block text-sm text-gray-500" for="display-name">ユーザー名（表示名）</label>
+				<div class="flex gap-2">
+					<input
+						id="display-name"
+						type="text"
+						bind:value={displayName}
+						maxlength="50"
+						placeholder="未設定"
+						class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+					/>
+					<button
+						type="submit"
+						disabled={savingName}
+						class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50 shrink-0"
+					>
+						{savingName ? '保存中...' : '保存'}
+					</button>
+				</div>
+				{#if nameSuccessMsg}
+					<p class="text-green-600 text-sm">{nameSuccessMsg}</p>
+				{/if}
+				{#if nameErrorMsg}
+					<p class="text-red-500 text-sm">{nameErrorMsg}</p>
+				{/if}
+			</form>
 		</div>
 	{/if}
 

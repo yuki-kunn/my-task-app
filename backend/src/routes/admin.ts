@@ -6,7 +6,7 @@ const router = new Hono<{ Variables: Variables }>();
 
 router.get('/users', async (c) => {
   const [rows] = await pool.query<any[]>(
-    `SELECT id, email, role, is_suspended, email_verified, created_at,
+    `SELECT id, email, display_name, role, is_suspended, email_verified, created_at,
        (SELECT COUNT(*) FROM tasks WHERE tasks.user_id = users.id) AS task_count,
        (SELECT COUNT(*) FROM events WHERE events.user_id = users.id) AS event_count
      FROM users ORDER BY created_at ASC`

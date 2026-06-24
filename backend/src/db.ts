@@ -29,6 +29,7 @@ export async function initDB() {
         is_suspended BOOLEAN NOT NULL DEFAULT FALSE,
         login_attempts INT NOT NULL DEFAULT 0,
         locked_until DATETIME NULL,
+        display_name VARCHAR(50) NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -41,6 +42,10 @@ export async function initDB() {
     const [suspendedCol] = await connection.query<any[]>(`SHOW COLUMNS FROM users LIKE 'is_suspended'`);
     if (suspendedCol.length === 0) {
       await connection.query(`ALTER TABLE users ADD COLUMN is_suspended BOOLEAN NOT NULL DEFAULT FALSE`);
+    }
+    const [displayNameCol] = await connection.query<any[]>(`SHOW COLUMNS FROM users LIKE 'display_name'`);
+    if (displayNameCol.length === 0) {
+      await connection.query(`ALTER TABLE users ADD COLUMN display_name VARCHAR(50) NULL`);
     }
 
     // Migrate legacy single-user row: add missing columns if they don't exist.

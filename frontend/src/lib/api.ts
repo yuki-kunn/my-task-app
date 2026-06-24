@@ -106,7 +106,14 @@ export async function verifyAndRegister(email: string, code: string, asAdmin = f
 }
 
 export function fetchMe() {
-	return request<{ email: string | null; role: string }>('/settings/me');
+	return request<{ email: string | null; role: string; displayName: string | null }>('/settings/me');
+}
+
+export function updateDisplayName(displayName: string) {
+	return request<{ success: boolean; displayName: string | null }>('/settings/profile', {
+		method: 'PUT',
+		body: JSON.stringify({ displayName })
+	});
 }
 
 export async function changePassword(newPassword: string) {
@@ -225,6 +232,7 @@ export function deleteUserColor(id: string) {
 export interface AdminUser {
 	id: string;
 	email: string;
+	display_name: string | null;
 	role: string;
 	is_suspended: boolean;
 	email_verified: boolean;

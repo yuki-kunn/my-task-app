@@ -111,7 +111,7 @@
 					>
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-2 flex-wrap">
-								<span class="font-medium text-gray-800 truncate">{user.email}</span>
+								<span class="font-medium text-gray-800 truncate">{user.display_name || user.email}</span>
 								{#if user.role === 'admin'}
 									<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-semibold">ADMIN</span>
 								{/if}
@@ -119,6 +119,9 @@
 									<span class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-semibold">停止中</span>
 								{/if}
 							</div>
+							{#if user.display_name}
+								<p class="text-xs text-gray-400 truncate">{user.email}</p>
+							{/if}
 							<p class="text-xs text-gray-400 mt-0.5">
 								登録: {formatDate(user.created_at)} ·
 								タスク {user.task_count} / 予定 {user.event_count}

@@ -11,6 +11,8 @@
 	let isAdmin = $state(false);
 	let mustChangePassword = $state(false);
 	let checked = $state(false);
+	let myDisplayName = $state<string | null>(null);
+	let myEmail = $state<string | null>(null);
 
 	$effect(() => {
 		page.url.pathname;
@@ -30,11 +32,19 @@
 	$effect(() => {
 		page.url.pathname;
 		if (isAuthenticated) {
-			fetchMe().then((me) => { isAdmin = me.role === 'admin'; }).catch(() => {});
+			fetchMe().then((me) => {
+				isAdmin = me.role === 'admin';
+				myDisplayName = me.displayName;
+				myEmail = me.email;
+			}).catch(() => {});
 		} else {
 			isAdmin = false;
+			myDisplayName = null;
+			myEmail = null;
 		}
 	});
+
+	const greetingName = $derived(myDisplayName || myEmail || '');
 
 	function logout() {
 		clearToken();
@@ -73,6 +83,9 @@
 					<a href="/admin" class="flex items-center gap-1.5 bg-indigo-600 px-3 py-1 rounded text-sm hover:bg-indigo-500 transition-colors">
 						<ShieldCheck size={14} /> 管理
 					</a>
+				{/if}
+				{#if greetingName}
+					<span class="text-indigo-200 text-xs truncate max-w-[140px]" title={greetingName}>{greetingName}</span>
 				{/if}
 				<button
 					onclick={logout}
