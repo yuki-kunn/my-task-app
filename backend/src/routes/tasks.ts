@@ -49,19 +49,25 @@ router.put('/:id', async (c) => {
   if (!title?.trim() || !deadline) {
     return c.json({ success: false, message: 'タスク名と締め切りは必須です' }, 400);
   }
-  await pool.query(
-    'UPDATE tasks SET title = ?, deadline = ?, repeat_type = ?, is_completed = ?, color = ?, reminder_sent_at = NULL WHERE id = ? AND user_id = ?',
-    [title.trim(), toMysqlDatetime(deadline), repeat_type ?? 'none', is_completed ? 1 : 0, color ?? null, id, userId]
-  );
-  if (is_completed && repeat_type && repeat_type !== 'none') {
-    const next = nextDeadline(parseDeadline(deadline), repeat_type);
-    if (next) {
-      await pool.query(
-        'INSERT INTO tasks (id, user_id, title, deadline, repeat_type, sort_order) VALUES (?, ?, ?, ?, ?, 0)',
-        [crypto.randomUUID(), userId, title.trim(), toMysqlDatetime(next), repeat_type]
-      );
+
+  if (is_completed) {
+    if (repeat_type && repeat_type !== 'none') {
+      const next = nextDeadline(parseDeadline(deadline), repeat_type);
+      if (next) {
+        await pool.query(
+          'INSERT INTO tasks (id, user_id, title, deadline, repeat_type, sort_order) VALUES (?, ?, ?, ?, ?, 0)',
+          [crypto.randomUUID(), userId, title.trim(), toMysqlDatetime(next), repeat_type]
+        );
+      }
     }
+    await pool.query('DELETE FROM tasks WHERE id = ? AND user_id = ?', [id, userId]);
+    return c.json({ success: true });
   }
+
+  await pool.query(
+    'UPDATE tasks SET title = ?, deadline = ?, repeat_type = ?, is_completed = FALSE, color = ?, reminder_sent_at = NULL WHERE id = ? AND user_id = ?',
+    [title.trim(), toMysqlDatetime(deadline), repeat_type ?? 'none', color ?? null, id, userId]
+  );
   return c.json({ success: true });
 });
 
