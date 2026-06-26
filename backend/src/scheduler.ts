@@ -98,7 +98,17 @@ function startDailySummary() {
   });
 }
 
+// Every day at 00:30 JST: delete events whose period has already ended.
+function startEndedEventCleanup() {
+  // 15:30 UTC = 00:30 JST
+  cron.schedule('30 15 * * *', async () => {
+    const now = jstNowAsMysqlDatetime();
+    await pool.query('DELETE FROM events WHERE end_dt < ?', [now]);
+  });
+}
+
 export function startScheduler() {
   startDeadlineReminder();
   startDailySummary();
+  startEndedEventCleanup();
 }
