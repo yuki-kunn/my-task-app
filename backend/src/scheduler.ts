@@ -1,6 +1,8 @@
 import cron from 'node-cron';
 import { pool } from './db.js';
 import { sendNotificationToUser } from './push.js';
+import { parseDeadline, toMysqlDatetime } from './helpers.js';
+import { nextEvent, type RepeatType } from './repeat.js';
 
 const REMINDER_WINDOW_MINUTES = 60;
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -98,12 +100,31 @@ function startDailySummary() {
   });
 }
 
-// Every day at 00:30 JST: delete events whose period has already ended.
+// Every day at 00:30 JST: repeating events whose period has ended get their next
+// occurrence generated; non-repeating ended events are deleted outright.
 function startEndedEventCleanup() {
   // 15:30 UTC = 00:30 JST
   cron.schedule('30 15 * * *', async () => {
     const now = jstNowAsMysqlDatetime();
-    await pool.query('DELETE FROM events WHERE end_dt < ?', [now]);
+
+    const [endedEvents] = await pool.query<any[]>(
+      'SELECT * FROM events WHERE end_dt < ?',
+      [now]
+    );
+
+    for (const event of endedEvents) {
+      const repeatType = event.repeat_type as RepeatType;
+      if (repeatType && repeatType !== 'none') {
+        const next = nextEvent(parseDeadline(event.start_dt), parseDeadline(event.end_dt), repeatType);
+        if (next) {
+          await pool.query(
+            'INSERT INTO events (id, user_id, title, start_dt, end_dt, memo, repeat_type, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [crypto.randomUUID(), event.user_id, event.title, toMysqlDatetime(next.start), toMysqlDatetime(next.end), event.memo, repeatType, event.color]
+          );
+        }
+      }
+      await pool.query('DELETE FROM events WHERE id = ?', [event.id]);
+    }
   });
 }
 
