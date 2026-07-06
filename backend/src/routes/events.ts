@@ -42,17 +42,23 @@ router.put('/:id', async (c) => {
   if (!title?.trim() || !start_dt || !end_dt) {
     return c.json({ success: false, message: 'タイトル・開始日時・終了日時は必須です' }, 400);
   }
-  await pool.query(
+  const [upd] = await pool.query<any>(
     'UPDATE events SET title = ?, start_dt = ?, end_dt = ?, memo = ?, repeat_type = ?, color = ?, reminder_sent_at = NULL WHERE id = ? AND user_id = ?',
     [title.trim(), toMysqlDatetime(start_dt), toMysqlDatetime(end_dt), memo ?? null, repeat_type ?? 'none', color ?? null, id, userId]
   );
+  if (upd.affectedRows === 0) {
+    return c.json({ success: false, message: '予定が見つかりません' }, 404);
+  }
   return c.json({ success: true });
 });
 
 router.delete('/:id', async (c) => {
   const userId = c.get('userId');
   const id = c.req.param('id');
-  await pool.query('DELETE FROM events WHERE id = ? AND user_id = ?', [id, userId]);
+  const [del] = await pool.query<any>('DELETE FROM events WHERE id = ? AND user_id = ?', [id, userId]);
+  if (del.affectedRows === 0) {
+    return c.json({ success: false, message: '予定が見つかりません' }, 404);
+  }
   return c.json({ success: true });
 });
 

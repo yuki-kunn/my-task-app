@@ -51,6 +51,11 @@ router.put('/:id', async (c) => {
   }
 
   if (is_completed) {
+    // I2: only act if the task actually belongs to the caller.
+    const [del] = await pool.query<any>('DELETE FROM tasks WHERE id = ? AND user_id = ?', [id, userId]);
+    if (del.affectedRows === 0) {
+      return c.json({ success: false, message: 'タスクが見つかりません' }, 404);
+    }
     if (repeat_type && repeat_type !== 'none') {
       const next = nextDeadline(parseDeadline(deadline), repeat_type);
       if (next) {
@@ -60,21 +65,26 @@ router.put('/:id', async (c) => {
         );
       }
     }
-    await pool.query('DELETE FROM tasks WHERE id = ? AND user_id = ?', [id, userId]);
     return c.json({ success: true });
   }
 
-  await pool.query(
+  const [upd] = await pool.query<any>(
     'UPDATE tasks SET title = ?, deadline = ?, repeat_type = ?, is_completed = FALSE, color = ?, reminder_sent_at = NULL WHERE id = ? AND user_id = ?',
     [title.trim(), toMysqlDatetime(deadline), repeat_type ?? 'none', color ?? null, id, userId]
   );
+  if (upd.affectedRows === 0) {
+    return c.json({ success: false, message: 'タスクが見つかりません' }, 404);
+  }
   return c.json({ success: true });
 });
 
 router.delete('/:id', async (c) => {
   const userId = c.get('userId');
   const id = c.req.param('id');
-  await pool.query('DELETE FROM tasks WHERE id = ? AND user_id = ?', [id, userId]);
+  const [del] = await pool.query<any>('DELETE FROM tasks WHERE id = ? AND user_id = ?', [id, userId]);
+  if (del.affectedRows === 0) {
+    return c.json({ success: false, message: 'タスクが見つかりません' }, 404);
+  }
   return c.json({ success: true });
 });
 

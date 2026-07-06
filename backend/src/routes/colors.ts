@@ -42,7 +42,10 @@ app.post('/', async (c) => {
 app.delete('/:id', async (c) => {
   const userId = c.get('userId');
   const colorId = c.req.param('id');
-  await pool.query('DELETE FROM user_colors WHERE id = ? AND user_id = ?', [colorId, userId]);
+  const [del] = await pool.query<any>('DELETE FROM user_colors WHERE id = ? AND user_id = ?', [colorId, userId]);
+  if (del.affectedRows === 0) {
+    return c.json({ success: false, message: 'カラーが見つかりません' }, 404);
+  }
   return c.json({ success: true });
 });
 

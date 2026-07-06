@@ -1,23 +1,22 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { getToken, requestVerificationCode, verifyAndRegister, checkAdminExists, ApiError } from '$lib/api';
+	import { getToken, requestVerificationCode, verifyAndRegister, ApiError } from '$lib/api';
 
 	type Step = 'email' | 'verify';
 
 	let step = $state<Step>('email');
 	let email = $state('');
 	let code = $state('');
-	let asAdmin = $state(false);
-	let adminExists = $state(true); // assume exists until checked
+	let password = $state('');
+	let confirmPassword = $state('');
 	let fallbackCode = $state<string | undefined>(undefined);
 	let resendError = $state<string | undefined>(undefined);
 	let errorMsg = $state('');
 	let loading = $state(false);
 
-	onMount(async () => {
-		if (getToken()) { goto('/dashboard'); return; }
-		adminExists = await checkAdminExists();
+	onMount(() => {
+		if (getToken()) goto('/dashboard');
 	});
 
 	async function handleRequestCode() {
@@ -37,9 +36,17 @@
 
 	async function handleVerify() {
 		errorMsg = '';
+		if (password.length < 8) {
+			errorMsg = 'パスワードは8文字以上で設定してください';
+			return;
+		}
+		if (password !== confirmPassword) {
+			errorMsg = '確認用パスワードが一致しません';
+			return;
+		}
 		loading = true;
 		try {
-			await verifyAndRegister(email, code, asAdmin);
+			await verifyAndRegister(email, code, password);
 			await goto('/dashboard');
 		} catch (err) {
 			errorMsg = err instanceof ApiError ? err.message : '認証に失敗しました';
@@ -72,16 +79,6 @@
 					required
 				/>
 			</div>
-
-			{#if !adminExists}
-				<label class="flex items-center gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50 cursor-pointer">
-					<input type="checkbox" bind:checked={asAdmin} class="w-4 h-4 rounded text-amber-600" />
-					<div>
-						<p class="text-sm font-medium text-amber-800">管理者アカウントとして登録</p>
-						<p class="text-xs text-amber-600">この操作は一度きりです。管理者が存在しない今のみ選択できます。</p>
-					</div>
-				</label>
-			{/if}
 
 			{#if errorMsg}
 				<p class="text-red-500 text-sm">{errorMsg}</p>
@@ -116,11 +113,6 @@
 					<p class="text-amber-800">認証コード: <span class="font-mono text-lg font-bold tracking-widest">{fallbackCode}</span></p>
 				</div>
 			{/if}
-			{#if asAdmin}
-				<div class="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-					<span>⚙️</span> 管理者アカウントとして登録されます
-				</div>
-			{/if}
 			<div>
 				<label class="block text-sm font-medium text-gray-700 mb-1" for="code">認証コード（6桁）</label>
 				<input
@@ -132,6 +124,30 @@
 					oninput={(e) => { code = (e.currentTarget as HTMLInputElement).value.replace(/\D/g, '').slice(0, 6); }}
 					class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-center font-mono text-xl tracking-widest"
 					placeholder="000000"
+					required
+				/>
+			</div>
+			<div>
+				<label class="block text-sm font-medium text-gray-700 mb-1" for="reg-pw">パスワード（8文字以上）</label>
+				<input
+					id="reg-pw"
+					type="password"
+					bind:value={password}
+					minlength="8"
+					class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+					placeholder="新しいパスワード"
+					required
+				/>
+			</div>
+			<div>
+				<label class="block text-sm font-medium text-gray-700 mb-1" for="reg-pw2">パスワード（確認）</label>
+				<input
+					id="reg-pw2"
+					type="password"
+					bind:value={confirmPassword}
+					minlength="8"
+					class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+					placeholder="もう一度入力"
 					required
 				/>
 			</div>

@@ -4,17 +4,28 @@ import mysql from 'mysql2/promise';
 // Falls back to discrete DB_* vars for local development.
 const connectionUrl = process.env.MYSQL_URL ?? process.env.DATABASE_URL;
 
+// I1: the app stores datetimes as UTC and compares them against MySQL NOW().
+// Pin every connection's session timezone to UTC so behaviour no longer depends
+// on the DB server's configured timezone (auth-code expiry, lockout, reminders).
 const pool = connectionUrl
-  ? mysql.createPool({ uri: connectionUrl, waitForConnections: true, connectionLimit: 10 })
+  ? mysql.createPool({ uri: connectionUrl, timezone: 'Z', waitForConnections: true, connectionLimit: 10 })
   : mysql.createPool({
       host: process.env.DB_HOST ?? '127.0.0.1',
       port: Number(process.env.DB_PORT ?? 3307),
       user: process.env.DB_USER ?? 'user',
       password: process.env.DB_PASSWORD ?? 'password',
       database: process.env.DB_NAME ?? 'todo_db',
+      timezone: 'Z',
       waitForConnections: true,
       connectionLimit: 10,
     });
+
+// mysql2's `timezone` option only affects how JS Date values are serialized; it
+// does NOT change what NOW()/CURRENT_TIMESTAMP return. Force the SESSION time_zone
+// to UTC on every pooled connection so server-side NOW() matches our stored UTC.
+pool.on('connection', (conn) => {
+  conn.query("SET time_zone = '+00:00'");
+});
 
 export async function initDB() {
   const connection = await pool.getConnection();
@@ -30,6 +41,7 @@ export async function initDB() {
         login_attempts INT NOT NULL DEFAULT 0,
         locked_until DATETIME NULL,
         display_name VARCHAR(50) NULL,
+        must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -46,6 +58,11 @@ export async function initDB() {
     const [displayNameCol] = await connection.query<any[]>(`SHOW COLUMNS FROM users LIKE 'display_name'`);
     if (displayNameCol.length === 0) {
       await connection.query(`ALTER TABLE users ADD COLUMN display_name VARCHAR(50) NULL`);
+    }
+    // Forces the user to set their own password before using the app (C1 fix).
+    const [mustChangeCol] = await connection.query<any[]>(`SHOW COLUMNS FROM users LIKE 'must_change_password'`);
+    if (mustChangeCol.length === 0) {
+      await connection.query(`ALTER TABLE users ADD COLUMN must_change_password BOOLEAN NOT NULL DEFAULT FALSE`);
     }
 
     // Migrate legacy single-user row: add missing columns if they don't exist.
@@ -108,9 +125,15 @@ export async function initDB() {
         email VARCHAR(255) NOT NULL,
         code CHAR(6) NOT NULL,
         expires_at DATETIME NOT NULL,
+        attempts INT NOT NULL DEFAULT 0,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    // H2: track wrong-code attempts to throttle brute force.
+    const [attemptsCol] = await connection.query<any[]>(`SHOW COLUMNS FROM email_verifications LIKE 'attempts'`);
+    if (attemptsCol.length === 0) {
+      await connection.query(`ALTER TABLE email_verifications ADD COLUMN attempts INT NOT NULL DEFAULT 0`);
+    }
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS tasks (

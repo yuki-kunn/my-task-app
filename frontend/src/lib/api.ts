@@ -77,12 +77,6 @@ export async function login(email: string, password: string): Promise<{ role: st
 	return { role: data.role ?? 'user', passwordIsDefault: data.passwordIsDefault ?? false };
 }
 
-export async function checkAdminExists(): Promise<boolean> {
-	const res = await fetch(`${API_URL}/auth/admin-exists`);
-	const data = await res.json();
-	return data.exists as boolean;
-}
-
 export async function requestVerificationCode(email: string): Promise<{ fallback: boolean; code?: string; resendError?: string }> {
 	const res = await fetch(`${API_URL}/auth/register`, {
 		method: 'POST',
@@ -94,11 +88,11 @@ export async function requestVerificationCode(email: string): Promise<{ fallback
 	return { fallback: data.fallback, code: data.code, resendError: data.resendError };
 }
 
-export async function verifyAndRegister(email: string, code: string, asAdmin = false) {
+export async function verifyAndRegister(email: string, code: string, password: string) {
 	const res = await fetch(`${API_URL}/auth/verify`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, code, asAdmin })
+		body: JSON.stringify({ email, code, password })
 	});
 	const data = await res.json();
 	if (!data.success) throw new ApiError(data.message ?? '認証に失敗しました');

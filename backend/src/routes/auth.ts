@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { pool } from '../db.js';
 import { sendVerificationEmail } from '../mailer.js';
@@ -8,19 +9,34 @@ import { toMysqlDatetime } from '../helpers.js';
 type Variables = { userId: string; userRole: string };
 const router = new Hono<{ Variables: Variables }>();
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+// Emails allowed to self-register as admin (comma-separated). Empty in prod ⇒ no
+// public admin path. The very first admin should be seeded via this env var.
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+// L1: cryptographically-secure 6-digit code (no Math.random).
 function generateCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
 }
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim().toLowerCase());
 }
 
+function isStrongPassword(pw: unknown): pw is string {
+  return typeof pw === 'string' && pw.length >= 8 && pw.length <= 200;
+}
+
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 const BCRYPT_ROUNDS = 12;
+const MAX_CODE_ATTEMPTS = 5; // H2: wrong-code guesses before a code is invalidated
 
-// Step 1: send verification code to email (or return it in dev/fallback mode).
+// Step 1: send verification code to email.
 router.post('/register', async (c) => {
   const { email } = await c.req.json<{ email?: string }>();
   if (!email || !isValidEmail(email)) {
@@ -28,16 +44,18 @@ router.post('/register', async (c) => {
   }
   const normalized = email.trim().toLowerCase();
 
-  // Check if already registered and verified.
+  // 期限切れコードを先に削除してからカウント（使用済み残骸による誤判定を防ぐ）。
+  await pool.query(`DELETE FROM email_verifications WHERE expires_at <= NOW()`);
+
+  // M1: don't disclose whether the email is already registered. If it is, we
+  // silently succeed without sending a code (registration for it is a no-op),
+  // so responses are indistinguishable to an enumeration attacker.
   const [existing] = await pool.query<any[]>(
     'SELECT id, email_verified FROM users WHERE email = ?', [normalized]
   );
   if (existing.length > 0 && existing[0].email_verified) {
-    return c.json({ success: false, message: 'このメールアドレスはすでに登録されています' }, 409);
+    return c.json({ success: true, fallback: false });
   }
-
-  // 期限切れコードを先に削除してからカウント（使用済み残骸による誤判定を防ぐ）。
-  await pool.query(`DELETE FROM email_verifications WHERE expires_at <= NOW()`);
 
   // Rate-limit: max 5 active (未期限切れ) codes per email within 10 min.
   const [recent] = await pool.query<any[]>(
@@ -58,58 +76,81 @@ router.post('/register', async (c) => {
   );
 
   const mailResult = await sendVerificationEmail(normalized, code);
+  // C2: the verification code must NEVER be returned in the HTTP response in
+  // production. The fallback (code-on-screen) is a dev-only convenience.
+  const canLeakCode = !IS_PRODUCTION;
   if (!mailResult.ok) {
-    // 送信エラー → フォールバック表示
-    return c.json({ success: true, fallback: true, code, resendError: mailResult.error });
+    if (canLeakCode) {
+      return c.json({ success: true, fallback: true, code, resendError: mailResult.error });
+    }
+    // Prod + send failure ⇒ fail closed, never expose the code.
+    console.error('Verification email send failed:', mailResult.error);
+    return c.json({ success: false, message: 'メールの送信に失敗しました。しばらくしてから再試行してください' }, 502);
   }
   if (mailResult.fallback) {
-    // Gmail未設定 → フォールバック表示
-    return c.json({ success: true, fallback: true, code });
+    if (canLeakCode) {
+      return c.json({ success: true, fallback: true, code });
+    }
+    // Prod without a configured mailer is a misconfiguration; fail closed.
+    console.error('Mailer not configured in production — refusing to expose verification code');
+    return c.json({ success: false, message: 'メール送信が設定されていません。管理者にお問い合わせください' }, 500);
   }
   return c.json({ success: true, fallback: false });
 });
 
-// Step 2: verify code and create account.
-// Pass asAdmin=true to register the first admin (allowed only when no admin exists yet).
+// Step 2: verify code and create account with a user-chosen password (C1).
+// Admin role is granted ONLY to emails listed in ADMIN_EMAILS (H1) — there is no
+// caller-controlled asAdmin flag anymore.
 router.post('/verify', async (c) => {
-  const { email, code, asAdmin } = await c.req.json<{ email?: string; code?: string; asAdmin?: boolean }>();
+  const { email, code, password } = await c.req.json<{ email?: string; code?: string; password?: string }>();
   if (!email || !code) {
     return c.json({ success: false, message: 'メールアドレスとコードを入力してください' }, 400);
   }
+  if (!isStrongPassword(password)) {
+    return c.json({ success: false, message: 'パスワードは8文字以上で設定してください' }, 400);
+  }
   const normalized = email.trim().toLowerCase();
 
-  // If requesting admin registration, ensure no admin exists yet.
-  if (asAdmin) {
-    const [adminRows] = await pool.query<any[]>(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);
-    if (adminRows.length > 0) {
-      return c.json({ success: false, message: '管理者アカウントはすでに存在します' }, 409);
-    }
+  // Fetch the newest active code row so we can track/limit wrong attempts (H2).
+  const [rows] = await pool.query<any[]>(
+    `SELECT id, code, attempts FROM email_verifications
+     WHERE email = ? AND expires_at > NOW()
+     ORDER BY created_at DESC LIMIT 1`,
+    [normalized]
+  );
+  const record = rows[0];
+  if (!record) {
+    return c.json({ success: false, message: 'コードが無効または期限切れです' }, 400);
   }
 
-  const [rows] = await pool.query<any[]>(
-    `SELECT id FROM email_verifications
-     WHERE email = ? AND code = ? AND expires_at > NOW()
-     ORDER BY created_at DESC LIMIT 1`,
-    [normalized, code.trim()]
-  );
-  if (rows.length === 0) {
+  // H2: too many wrong guesses ⇒ invalidate the code entirely.
+  if (record.attempts >= MAX_CODE_ATTEMPTS) {
+    await pool.query('DELETE FROM email_verifications WHERE email = ?', [normalized]);
+    return c.json({ success: false, message: '試行回数が上限に達しました。コードを再送信してください' }, 429);
+  }
+
+  if (record.code !== String(code).trim()) {
+    await pool.query('UPDATE email_verifications SET attempts = attempts + 1 WHERE id = ?', [record.id]);
     return c.json({ success: false, message: 'コードが無効または期限切れです' }, 400);
   }
 
   await pool.query('DELETE FROM email_verifications WHERE email = ?', [normalized]);
 
-  const role = asAdmin ? 'admin' : 'user';
+  const role = ADMIN_EMAILS.includes(normalized) ? 'admin' : 'user';
+  const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const [existing] = await pool.query<any[]>('SELECT id FROM users WHERE email = ?', [normalized]);
 
   let userId: string;
   if (existing.length > 0) {
     userId = existing[0].id;
-    await pool.query('UPDATE users SET email_verified = TRUE, role = ? WHERE id = ?', [role, userId]);
+    await pool.query(
+      'UPDATE users SET email_verified = TRUE, role = ?, password_hash = ?, must_change_password = FALSE WHERE id = ?',
+      [role, hash, userId]
+    );
   } else {
     userId = crypto.randomUUID();
-    const hash = await bcrypt.hash('pass', BCRYPT_ROUNDS);
     await pool.query(
-      'INSERT INTO users (id, email, email_verified, password_hash, role) VALUES (?, ?, TRUE, ?, ?)',
+      'INSERT INTO users (id, email, email_verified, password_hash, role, must_change_password) VALUES (?, ?, TRUE, ?, ?, FALSE)',
       [userId, normalized, hash, role]
     );
   }
@@ -127,7 +168,7 @@ router.post('/login', async (c) => {
   const normalized = email.trim().toLowerCase();
 
   const [rows] = await pool.query<any[]>(
-    'SELECT id, password_hash, email_verified, role, is_suspended, login_attempts, locked_until FROM users WHERE email = ?',
+    'SELECT id, password_hash, email_verified, role, is_suspended, login_attempts, locked_until, must_change_password FROM users WHERE email = ?',
     [normalized]
   );
   const user = rows[0];
@@ -164,14 +205,10 @@ router.post('/login', async (c) => {
   // Reset attempts on success.
   await pool.query('UPDATE users SET login_attempts = 0, locked_until = NULL WHERE id = ?', [user.id]);
   const token = await createSessionToken(user.id, user.role ?? 'user');
-  // 初期パスワード "pass" のままかチェック（強制変更フロー用）
-  const passwordIsDefault = await bcrypt.compare('pass', user.password_hash);
+  // Accounts created before the C1 fix may still carry a server-set default
+  // password and are flagged with must_change_password.
+  const passwordIsDefault = !!user.must_change_password;
   return c.json({ success: true, token, role: user.role ?? 'user', passwordIsDefault });
-});
-
-router.get('/admin-exists', async (c) => {
-  const [rows] = await pool.query<any[]>(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);
-  return c.json({ exists: rows.length > 0 });
 });
 
 export default router;

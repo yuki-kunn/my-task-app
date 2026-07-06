@@ -35,7 +35,10 @@ router.put('/password', async (c) => {
     return c.json({ success: false, message: 'パスワードは8文字以上にしてください' }, 400);
   }
   const hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-  await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, userId]);
+  await pool.query(
+    'UPDATE users SET password_hash = ?, must_change_password = FALSE WHERE id = ?',
+    [hash, userId]
+  );
   return c.json({ success: true });
 });
 

@@ -28,6 +28,28 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
+// M2: baseline security headers on every response. This is a JSON API served
+// cross-origin from the SPA, so a restrictive CSP that forbids embedding/loading
+// is appropriate.
+app.use('*', async (c, next) => {
+  await next();
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('Referrer-Policy', 'no-referrer');
+  c.header('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+  c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+});
+
+// I3: a malformed JSON body used to throw an uncaught error → 500 with a stack
+// trace in logs. Catch it centrally and return a clean 400.
+app.onError((err, c) => {
+  if (err instanceof SyntaxError) {
+    return c.json({ success: false, message: 'リクエストの形式が不正です' }, 400);
+  }
+  console.error('Unhandled error:', err);
+  return c.json({ success: false, message: 'サーバーエラーが発生しました' }, 500);
+});
+
 // --- Health ------------------------------------------------------------------
 
 app.get('/api/health', (c) => c.json({ ok: true }));
