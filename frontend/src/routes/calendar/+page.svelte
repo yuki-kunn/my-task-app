@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { ChevronLeft, ChevronRight, Plus, Clock, RotateCw, Edit, FileText } from 'lucide-svelte';
-	import { fetchTasks, fetchEvents, fetchUserColors, ApiError } from '$lib/api';
+	import { ChevronLeft, ChevronRight, Plus, Clock, RotateCw, Edit, Trash2, FileText } from 'lucide-svelte';
+	import { fetchTasks, fetchEvents, fetchUserColors, deleteTask, deleteEvent, ApiError } from '$lib/api';
 	import type { UserColor } from '$lib/api';
 	import { formatDeadline } from '$lib/deadline';
 	import { TASK_DOT_COLOR, EVENT_DOT_COLOR, TASK_COLOR_CLASSES, EVENT_COLOR_CLASSES } from '$lib/colors';
@@ -95,6 +95,26 @@
 		sessionStorage.setItem('edit_task', JSON.stringify(task));
 		sessionStorage.setItem('calendar_return_date', selectedDateStr);
 		goto('/task');
+	}
+
+	async function removeTask(id: string) {
+		if (!confirm('タスクを削除しますか？')) return;
+		try {
+			await deleteTask(id);
+			await loadData();
+		} catch (err) {
+			errorMsg = err instanceof ApiError ? err.message : '削除に失敗しました';
+		}
+	}
+
+	async function removeEvent(id: string) {
+		if (!confirm('予定を削除しますか？')) return;
+		try {
+			await deleteEvent(id);
+			await loadData();
+		} catch (err) {
+			errorMsg = err instanceof ApiError ? err.message : '削除に失敗しました';
+		}
 	}
 
 	function editEvent(event: Event) {
@@ -193,13 +213,22 @@
 										{task.title}
 									</p>
 								</div>
-								<button
-									onclick={() => editTask(task)}
-									class="shrink-0 p-1 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 rounded transition"
-									aria-label="編集"
-								>
-									<Edit size={16} />
-								</button>
+								<div class="flex items-center gap-1 shrink-0">
+									<button
+										onclick={() => editTask(task)}
+										class="p-1 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 rounded transition"
+										aria-label="編集"
+									>
+										<Edit size={16} />
+									</button>
+									<button
+										onclick={() => removeTask(task.id)}
+										class="p-1 text-red-500 hover:text-red-600 hover:bg-red-100 rounded transition"
+										aria-label="削除"
+									>
+										<Trash2 size={16} />
+									</button>
+								</div>
 							</div>
 							<div class="flex items-center gap-3 mt-1.5 flex-wrap">
 								<span class="flex items-center gap-1 text-xs text-gray-500">
@@ -233,13 +262,22 @@
 									></span>
 									<p class="font-semibold text-gray-800 break-words">{event.title}</p>
 								</div>
-								<button
-									onclick={() => editEvent(event)}
-									class="shrink-0 p-1 text-violet-600 hover:text-violet-700 hover:bg-violet-200 rounded transition"
-									aria-label="編集"
-								>
-									<Edit size={16} />
-								</button>
+								<div class="flex items-center gap-1 shrink-0">
+									<button
+										onclick={() => editEvent(event)}
+										class="p-1 text-violet-600 hover:text-violet-700 hover:bg-violet-200 rounded transition"
+										aria-label="編集"
+									>
+										<Edit size={16} />
+									</button>
+									<button
+										onclick={() => removeEvent(event.id)}
+										class="p-1 text-red-500 hover:text-red-600 hover:bg-red-100 rounded transition"
+										aria-label="削除"
+									>
+										<Trash2 size={16} />
+									</button>
+								</div>
 							</div>
 							<div class="flex items-center gap-3 mt-1.5 flex-wrap">
 								<span class="flex items-center gap-1 text-xs text-gray-500">

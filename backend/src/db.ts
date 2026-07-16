@@ -144,7 +144,7 @@ export async function initDB() {
         repeat_type VARCHAR(20) NOT NULL DEFAULT 'none',
         is_completed BOOLEAN NOT NULL DEFAULT FALSE,
         sort_order INT NOT NULL DEFAULT 0,
-        color VARCHAR(20) NULL,
+        color VARCHAR(50) NULL,
         reminder_sent_at DATETIME NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
@@ -157,7 +157,10 @@ export async function initDB() {
     }
     const [taskColorCol] = await connection.query<any[]>(`SHOW COLUMNS FROM tasks LIKE 'color'`);
     if (taskColorCol.length === 0) {
-      await connection.query(`ALTER TABLE tasks ADD COLUMN color VARCHAR(20) NULL`);
+      await connection.query(`ALTER TABLE tasks ADD COLUMN color VARCHAR(50) NULL`);
+    } else if (!/varchar\(50\)/i.test(taskColorCol[0].Type)) {
+      // Widen for custom colors stored as "custom:<uuid>" (~43 chars).
+      await connection.query(`ALTER TABLE tasks MODIFY COLUMN color VARCHAR(50) NULL`);
     }
     const [taskUserCol] = await connection.query<any[]>(`SHOW COLUMNS FROM tasks LIKE 'user_id'`);
     if (taskUserCol.length === 0) {
@@ -175,7 +178,7 @@ export async function initDB() {
         end_dt DATETIME NOT NULL,
         memo TEXT NULL,
         repeat_type VARCHAR(20) NOT NULL DEFAULT 'none',
-        color VARCHAR(20) NULL,
+        color VARCHAR(50) NULL,
         reminder_sent_at DATETIME NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
@@ -183,7 +186,9 @@ export async function initDB() {
 
     const [eventColorCol] = await connection.query<any[]>(`SHOW COLUMNS FROM events LIKE 'color'`);
     if (eventColorCol.length === 0) {
-      await connection.query(`ALTER TABLE events ADD COLUMN color VARCHAR(20) NULL`);
+      await connection.query(`ALTER TABLE events ADD COLUMN color VARCHAR(50) NULL`);
+    } else if (!/varchar\(50\)/i.test(eventColorCol[0].Type)) {
+      await connection.query(`ALTER TABLE events MODIFY COLUMN color VARCHAR(50) NULL`);
     }
     const [eventUserCol] = await connection.query<any[]>(`SHOW COLUMNS FROM events LIKE 'user_id'`);
     if (eventUserCol.length === 0) {
