@@ -198,6 +198,31 @@ export function unsubscribePush(endpoint: string) {
 	});
 }
 
+// --- API tokens (Obsidian export, etc.) ---------------------------------------
+
+export interface ApiToken {
+	id: string;
+	name: string;
+	scope: string;
+	last_used_at: string | null;
+	created_at: string;
+}
+
+export function fetchApiTokens() {
+	return request<ApiToken[]>('/tokens');
+}
+
+export function createApiToken(name: string) {
+	return request<{ success: boolean; id: string; name: string; token: string }>('/tokens', {
+		method: 'POST',
+		body: JSON.stringify({ name })
+	});
+}
+
+export function deleteApiToken(id: string) {
+	return request<{ success: boolean }>(`/tokens/${id}`, { method: 'DELETE' });
+}
+
 // --- User colors -------------------------------------------------------------
 
 export interface UserColor {

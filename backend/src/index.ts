@@ -4,6 +4,7 @@ import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import { pool, initDB } from './db.js';
 import { authMiddleware, adminMiddleware } from './auth.js';
+import { apiTokenMiddleware } from './apiTokens.js';
 import { startScheduler } from './scheduler.js';
 import { isPushConfigured } from './push.js';
 
@@ -14,8 +15,10 @@ import settingsRouter from './routes/settings.js';
 import adminRouter from './routes/admin.js';
 import aiRouter from './routes/ai.js';
 import colorsRouter from './routes/colors.js';
+import apiTokensRouter from './routes/apiTokens.js';
+import obsidianRouter from './routes/obsidian.js';
 
-type Variables = { userId: string; userRole: string };
+type Variables = { userId: string; userRole: string; apiTokenId?: string };
 const app = new Hono<{ Variables: Variables }>();
 
 const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
@@ -78,6 +81,17 @@ app.route('/api/colors', colorsRouter);
 
 app.use('/api/admin/*', adminMiddleware);
 app.route('/api/admin', adminRouter);
+
+// Personal API token management — same session auth as the rest of the SPA.
+app.use('/api/tokens', authMiddleware);
+app.use('/api/tokens/*', authMiddleware);
+app.route('/api/tokens', apiTokensRouter);
+
+// Obsidian export — authenticated with a long-lived personal API token instead
+// of the short-lived session JWT, since this is meant to be called by an
+// unattended script rather than a logged-in browser.
+app.use('/api/obsidian/*', apiTokenMiddleware);
+app.route('/api/obsidian', obsidianRouter);
 
 // --- Push notifications ------------------------------------------------------
 

@@ -19,6 +19,7 @@ AI によるテキスト解析からプッシュ通知まで、日常の予定�
 | 認証 | メール認証 + パスワードログイン / アカウントロック |
 | 管理者 | ユーザー管理（停止 / 復旧 / 削除） / 他ユーザーのタスク・予定参照 |
 | PWA | インストール対応（manifest + Service Worker） |
+| Obsidian 連携 | 長期 API トークンによる読み取り専用エクスポート API |
 
 ---
 
@@ -197,9 +198,105 @@ node -e "const wp = require('web-push'); const k = wp.generateVAPIDKeys(); conso
 | GET | `/api/push/vapid-public-key` | VAPID 公開鍵取得 |
 | POST | `/api/push/subscribe` | プッシュ購読登録 |
 | POST | `/api/push/unsubscribe` | プッシュ購読解除 |
+| GET/POST/DELETE | `/api/tokens` | 個人用 API トークン管理（JWT 認証） |
+| GET | `/api/obsidian/export` | タスク・予定のエクスポート（API トークン認証） |
 | GET | `/api/admin/users` | ユーザー一覧 (管理者専用) |
 | PUT | `/api/admin/users/:id/suspend` | ユーザー停止 |
 | DELETE | `/api/admin/users/:id` | ユーザー削除 |
+
+---
+
+## Obsidian 連携
+
+タスク・予定を Obsidian の Vault に定期同期するための読み取り専用エクスポート API です。Tasqa は JSON を返すだけで、Markdown ノート化と Vault への書き込みは Obsidian 側のスクリプトが行います（Tasqa は Vault の場所を一切知らない設計）。
+
+### 1. API トークンを発行
+
+設定画面の「外部連携（Obsidianなど）」からトークンを発行します。**表示は発行直後の一度きり**なので、必ず控えてください（`tasqa_` から始まる文字列）。DB には SHA-256 ハッシュのみ保存され、平文は保持されません。不要になったらいつでも失効できます。
+
+### 2. エンドポイント
+
+```
+GET /api/obsidian/export
+Authorization: Bearer tasqa_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+レスポンス例:
+
+```json
+{
+  "exportedAt": "2026-07-30T03:00:00.000Z",
+  "count": 2,
+  "ids": ["11111111-...", "22222222-..."],
+  "notes": [
+    {
+      "id": "11111111-...",
+      "type": "task",
+      "title": "資料を提出する",
+      "deadline": "2026-08-01T10:00:00.000Z",
+      "is_completed": false,
+      "repeat_type": "none",
+      "color": "#6366f1",
+      "created_at": "2026-07-20T09:00:00.000Z"
+    },
+    {
+      "id": "22222222-...",
+      "type": "event",
+      "title": "定例会議",
+      "start_dt": "2026-08-02T01:00:00.000Z",
+      "end_dt": "2026-08-02T02:00:00.000Z",
+      "memo": "会議室A",
+      "repeat_type": "weekly",
+      "color": "orange",
+      "created_at": "2026-07-15T09:00:00.000Z"
+    }
+  ]
+}
+```
+
+- `color` はプリセットキー（例 `orange`）またはユーザーカラーの実 hex（例 `#6366f1`）に解決済みで返ります。`custom:<uuid>` の形では返しません。
+- `ids` は**現時点で Tasqa に存在する全アイテムの ID**です。Tasqa は完了・削除時にレコードを即削除する仕様のため、Obsidian 側で前回同期時に作ったノートのうち `ids` に無いものは「削除された」と判断してください（Vault 側の削除/アーカイブは任意のロジックで実装）。
+
+### 3. Obsidian 側の同期例
+
+Templater や QuickAdd 不要、[Obsidian Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) プラグインも不要です。[obsidian-tasks-plugin](https://github.com/obsidianmd/obsidian-tasks) 等と併用する場合は、生成する Markdown 側のタスク記法をそちらの形式に合わせてください。[Templater](https://github.com/SilentVoid13/Templater) や外部スクリプト実行環境（例: [obsidian-shellcommands](https://github.com/Taitava/obsidian-shellcommands)、または Node.js の定期実行）から以下のような処理を行うイメージです：
+
+```js
+// 疑似コード：Vault 内 "Tasqa/" フォルダに1件=1ノートで同期する例
+const res = await fetch('https://<your-backend>.up.railway.app/api/obsidian/export', {
+  headers: { Authorization: 'Bearer tasqa_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' }
+});
+const { ids, notes } = await res.json();
+
+for (const note of notes) {
+  const path = `Tasqa/${note.id}.md`;
+  const frontmatter = [
+    '---',
+    `tasqa_id: ${note.id}`,
+    `type: ${note.type}`,
+    `repeat: ${note.repeat_type}`,
+    note.color ? `color: "${note.color}"` : null,
+    note.type === 'task' ? `deadline: ${note.deadline}` : null,
+    note.type === 'task' ? `completed: ${note.is_completed}` : null,
+    note.type === 'event' ? `start: ${note.start_dt}` : null,
+    note.type === 'event' ? `end: ${note.end_dt}` : null,
+    '---',
+  ].filter(Boolean).join('\n');
+  const body = `# ${note.title}\n\n${note.memo ?? ''}`;
+  await app.vault.adapter.write(path, `${frontmatter}\n\n${body}`);
+}
+
+// 削除同期: ids に無いノートを削除
+const existingFiles = app.vault.getFiles().filter(f => f.path.startsWith('Tasqa/'));
+for (const file of existingFiles) {
+  const id = file.basename;
+  if (!ids.includes(id)) {
+    await app.vault.delete(file);
+  }
+}
+```
+
+これを Templater の起動時スクリプトや `setInterval`、または OS の cron / タスクスケジューラで定期実行すれば片方向（Tasqa → Obsidian）の自動同期になります。Obsidian → Tasqa への書き戻しは現状サポートしていません（読み取り専用 API）。
 
 ---
 

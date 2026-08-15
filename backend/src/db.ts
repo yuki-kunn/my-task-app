@@ -233,6 +233,22 @@ export async function initDB() {
         INDEX idx_user_colors_user (user_id)
       )
     `);
+
+    // Long-lived personal API tokens for read-only integrations (e.g. Obsidian
+    // export). We store only a SHA-256 hash — the plaintext is shown once, at
+    // issuance, and never persisted or logged.
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS api_tokens (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
+        name VARCHAR(100) NOT NULL DEFAULT '',
+        token_hash CHAR(64) NOT NULL UNIQUE,
+        scope VARCHAR(30) NOT NULL DEFAULT 'obsidian_export',
+        last_used_at DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_api_tokens_user (user_id)
+      )
+    `);
   } finally {
     connection.release();
   }

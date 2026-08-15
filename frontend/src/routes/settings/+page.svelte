@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { LogOut, ShieldAlert, Bell, User, KeyRound } from 'lucide-svelte';
-	import { changePassword, fetchMe, updateDisplayName, clearToken, getPasswordIsDefault, ApiError } from '$lib/api';
+	import { LogOut, ShieldAlert, Bell, User, KeyRound, Link2, Trash2, Copy, Check } from 'lucide-svelte';
+	import {
+		changePassword, fetchMe, updateDisplayName, clearToken, getPasswordIsDefault,
+		fetchApiTokens, createApiToken, deleteApiToken, ApiError
+	} from '$lib/api';
+	import type { ApiToken } from '$lib/api';
 	import {
 		isPushSupported,
 		getPushSubscription,
@@ -29,6 +33,13 @@
 	let pushBusy = $state(false);
 	let pushError = $state('');
 
+	let apiTokens = $state<ApiToken[]>([]);
+	let newTokenName = $state('');
+	let issuedToken = $state<string | null>(null);
+	let tokenBusy = $state(false);
+	let tokenError = $state('');
+	let copied = $state(false);
+
 	onMount(async () => {
 		mustChangePassword = getPasswordIsDefault();
 		try {
@@ -42,7 +53,46 @@
 			const sub = await getPushSubscription();
 			pushEnabled = !!sub;
 		}
+
+		if (!mustChangePassword) {
+			apiTokens = await fetchApiTokens().catch(() => []);
+		}
 	});
+
+	async function handleCreateToken() {
+		tokenError = '';
+		tokenBusy = true;
+		try {
+			const res = await createApiToken(newTokenName.trim() || 'Obsidian連携');
+			issuedToken = res.token;
+			copied = false;
+			newTokenName = '';
+			apiTokens = await fetchApiTokens();
+		} catch (err) {
+			tokenError = err instanceof ApiError ? err.message : 'トークンの発行に失敗しました';
+		} finally {
+			tokenBusy = false;
+		}
+	}
+
+	async function handleRevokeToken(id: string) {
+		if (!confirm('このトークンを失効させますか？連携中のスクリプトは使えなくなります。')) return;
+		try {
+			await deleteApiToken(id);
+			apiTokens = apiTokens.filter((t) => t.id !== id);
+		} catch (err) {
+			tokenError = err instanceof ApiError ? err.message : '失効に失敗しました';
+		}
+	}
+
+	async function copyToken() {
+		if (!issuedToken) return;
+		try {
+			await navigator.clipboard.writeText(issuedToken);
+			copied = true;
+			setTimeout(() => { copied = false; }, 2000);
+		} catch { /* clipboard unavailable */ }
+	}
 
 	async function togglePush() {
 		pushBusy = true;
@@ -234,6 +284,83 @@
 					{pushBusy ? '処理中...' : pushEnabled ? '通知をオフにする' : '通知をオンにする'}
 				</button>
 			{/if}
+		</div>
+
+		<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+			<h2 class="text-lg font-bold text-gray-800 flex items-center gap-2 mb-2">
+				<Link2 size={20} class="text-indigo-600" /> 外部連携（Obsidianなど）
+			</h2>
+			<p class="text-sm text-gray-600 mb-4">
+				APIトークンを発行すると、タスク・予定をObsidianなどの外部ツールから定期取得できます。
+			</p>
+
+			{#if issuedToken}
+				<div class="bg-amber-50 border border-amber-300 rounded-lg p-3 mb-4">
+					<p class="text-xs font-semibold text-amber-800 mb-1.5">
+						このトークンは今だけ表示されます。必ずコピーして保管してください。
+					</p>
+					<div class="flex items-center gap-2">
+						<code class="flex-1 min-w-0 truncate text-xs bg-white border border-amber-200 rounded px-2 py-1.5 font-mono">{issuedToken}</code>
+						<button
+							onclick={copyToken}
+							class="shrink-0 p-1.5 text-amber-700 hover:bg-amber-100 rounded transition"
+							aria-label="コピー"
+						>
+							{#if copied}<Check size={16} />{:else}<Copy size={16} />{/if}
+						</button>
+					</div>
+					<button
+						onclick={() => (issuedToken = null)}
+						class="text-xs text-amber-700 hover:underline mt-2"
+					>
+						閉じる
+					</button>
+				</div>
+			{/if}
+
+			{#if apiTokens.length > 0}
+				<ul class="space-y-2 mb-4">
+					{#each apiTokens as t (t.id)}
+						<li class="flex items-center justify-between gap-2 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+							<div class="min-w-0">
+								<p class="font-medium text-gray-800 truncate">{t.name}</p>
+								<p class="text-xs text-gray-400">
+									{t.last_used_at ? `最終使用: ${new Date(t.last_used_at).toLocaleDateString('ja-JP')}` : '未使用'}
+								</p>
+							</div>
+							<button
+								onclick={() => handleRevokeToken(t.id)}
+								class="shrink-0 p-1.5 text-red-500 hover:bg-red-50 rounded transition"
+								aria-label="失効"
+								title="失効"
+							>
+								<Trash2 size={15} />
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+
+			{#if tokenError}
+				<p class="text-red-500 text-sm mb-2">{tokenError}</p>
+			{/if}
+
+			<form onsubmit={(e) => { e.preventDefault(); handleCreateToken(); }} class="flex gap-2">
+				<input
+					type="text"
+					bind:value={newTokenName}
+					maxlength="100"
+					placeholder="トークン名（例: Obsidian）"
+					class="flex-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+				/>
+				<button
+					type="submit"
+					disabled={tokenBusy}
+					class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50 shrink-0"
+				>
+					{tokenBusy ? '発行中...' : '発行'}
+				</button>
+			</form>
 		</div>
 
 		<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
