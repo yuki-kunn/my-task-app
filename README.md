@@ -19,7 +19,7 @@ AI によるテキスト解析からプッシュ通知まで、日常の予定�
 | 認証 | メール認証 + パスワードログイン / アカウントロック |
 | 管理者 | ユーザー管理（停止 / 復旧 / 削除） / 他ユーザーのタスク・予定参照 |
 | PWA | インストール対応（manifest + Service Worker） |
-| Obsidian 連携 | 長期 API トークンによる読み取り専用エクスポート API |
+| Obsidian 連携 | 長期 API トークンによる読み取り専用エクスポート API + 専用プラグインで自動同期 |
 
 ---
 
@@ -257,9 +257,13 @@ Authorization: Bearer tasqa_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 - `color` はプリセットキー（例 `orange`）またはユーザーカラーの実 hex（例 `#6366f1`）に解決済みで返ります。`custom:<uuid>` の形では返しません。
 - `ids` は**現時点で Tasqa に存在する全アイテムの ID**です。Tasqa は完了・削除時にレコードを即削除する仕様のため、Obsidian 側で前回同期時に作ったノートのうち `ids` に無いものは「削除された」と判断してください（Vault 側の削除/アーカイブは任意のロジックで実装）。
 
-### 3. Obsidian 側の同期例
+### 3. 専用プラグイン（推奨・自動化済み）
 
-Templater や QuickAdd 不要、[Obsidian Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) プラグインも不要です。[obsidian-tasks-plugin](https://github.com/obsidianmd/obsidian-tasks) 等と併用する場合は、生成する Markdown 側のタスク記法をそちらの形式に合わせてください。[Templater](https://github.com/SilentVoid13/Templater) や外部スクリプト実行環境（例: [obsidian-shellcommands](https://github.com/Taitava/obsidian-shellcommands)、または Node.js の定期実行）から以下のような処理を行うイメージです：
+[`obsidian-plugin/`](./obsidian-plugin) に、この API を使って Vault と自動同期する Obsidian プラグイン「Tasqa Sync」を同梱しています。設定画面にバックエンドURLとAPIトークンを入力するだけで、Obsidian 起動中は指定間隔（デフォルト15分）ごとに自動で同期し、Tasqa 側で完了・削除されたアイテムのノートも自動でゴミ箱へ移動します。セットアップ手順は [obsidian-plugin/README.md](./obsidian-plugin/README.md) を参照してください。
+
+### 4. 自前でスクリプトを書く場合（参考実装）
+
+専用プラグインを使わず、Templater や外部スクリプト実行環境（例: [obsidian-shellcommands](https://github.com/Taitava/obsidian-shellcommands)、または Node.js の定期実行）で独自に同期処理を組みたい場合の参考コードです。[obsidian-tasks-plugin](https://github.com/obsidianmd/obsidian-tasks) 等と併用する場合は、生成する Markdown 側のタスク記法をそちらの形式に合わせてください。
 
 ```js
 // 疑似コード：Vault 内 "Tasqa/" フォルダに1件=1ノートで同期する例

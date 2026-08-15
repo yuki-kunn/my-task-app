@@ -1,0 +1,10 @@
+{
+	"id": "tasqa-sync",
+	"name": "Tasqa Sync",
+	"version": "1.0.0",
+	"minAppVersion": "1.0.0",
+	"description": "Tasqaのタスク・予定をVaultに定期同期する読み取り専用インテグレーション。",
+	"author": "Tasqa",
+	"authorUrl": "",
+	"isDesktopOnly": false
+}
