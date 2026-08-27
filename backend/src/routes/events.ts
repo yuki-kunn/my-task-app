@@ -25,6 +25,9 @@ router.post('/', async (c) => {
   if (!id || !title?.trim() || !start_dt || !end_dt) {
     return c.json({ success: false, message: 'タイトル・開始日時・終了日時は必須です' }, 400);
   }
+  if (parseDeadline(start_dt) >= parseDeadline(end_dt)) {
+    return c.json({ success: false, message: '終了日時は開始日時より後にしてください' }, 400);
+  }
   await pool.query(
     'INSERT INTO events (id, user_id, title, start_dt, end_dt, memo, repeat_type, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [id, userId, title.trim(), toMysqlDatetime(start_dt), toMysqlDatetime(end_dt), memo ?? null, repeat_type ?? 'none', color ?? null]
@@ -41,6 +44,9 @@ router.put('/:id', async (c) => {
   }>();
   if (!title?.trim() || !start_dt || !end_dt) {
     return c.json({ success: false, message: 'タイトル・開始日時・終了日時は必須です' }, 400);
+  }
+  if (parseDeadline(start_dt) >= parseDeadline(end_dt)) {
+    return c.json({ success: false, message: '終了日時は開始日時より後にしてください' }, 400);
   }
   const [upd] = await pool.query<any>(
     'UPDATE events SET title = ?, start_dt = ?, end_dt = ?, memo = ?, repeat_type = ?, color = ?, reminder_sent_at = NULL WHERE id = ? AND user_id = ?',

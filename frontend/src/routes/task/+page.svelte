@@ -104,6 +104,10 @@
 			errorMsg = '開始・終了日時を入力してください';
 			return;
 		}
+		if (mode === 'event' && !all_day && new Date(start_dt) >= new Date(end_dt)) {
+			errorMsg = '終了日時は開始日時より後にしてください';
+			return;
+		}
 
 		saving = true;
 		errorMsg = '';
