@@ -1,5 +1,7 @@
 # Tasqa
 
+[![CI](https://github.com/yuki-kunn/my-task-app/actions/workflows/ci.yml/badge.svg)](https://github.com/yuki-kunn/my-task-app/actions/workflows/ci.yml)
+
 マルチユーザー対応のタスク・予定管理 Web アプリ。  
 AI によるテキスト解析からプッシュ通知まで、日常の予定管理を一元化します。
 
@@ -167,7 +169,21 @@ node -e "const wp = require('web-push'); const k = wp.generateVAPIDKeys(); conso
 
 ---
 
-## デプロイ
+## CI / デプロイ
+
+### CI（GitHub Actions）
+
+`main` への push と PR ごとに [`.github/workflows/ci.yml`](.github/workflows/ci.yml) が走り、3プロジェクトを並列に検証します。
+
+| ジョブ | 内容 |
+|---|---|
+| backend | `npm ci` → `tsc --noEmit`（型チェック）→ `npm run build` |
+| frontend | `npm ci` → `npm run check`（svelte-check）→ `npm run build` |
+| obsidian-plugin | `npm ci` → `npm run build`（tsc + esbuild バンドル） |
+
+### デプロイ
+
+デプロイは各サービスの Git 連携による自動デプロイに委ねています（`main` への push で反映）。
 
 | 対象 | サービス | 備考 |
 |---|---|---|
