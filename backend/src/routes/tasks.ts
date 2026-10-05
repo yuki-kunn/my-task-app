@@ -51,6 +51,9 @@ router.put('/:id', async (c) => {
   }
 
   if (is_completed) {
+    // Read the stored color before the row is deleted; the request's color may be stale/absent.
+    const [rows] = await pool.query<any[]>('SELECT color FROM tasks WHERE id = ? AND user_id = ?', [id, userId]);
+    const storedColor = rows[0]?.color ?? null;
     // I2: only act if the task actually belongs to the caller.
     const [del] = await pool.query<any>('DELETE FROM tasks WHERE id = ? AND user_id = ?', [id, userId]);
     if (del.affectedRows === 0) {
@@ -60,8 +63,8 @@ router.put('/:id', async (c) => {
       const next = nextDeadline(parseDeadline(deadline), repeat_type);
       if (next) {
         await pool.query(
-          'INSERT INTO tasks (id, user_id, title, deadline, repeat_type, sort_order) VALUES (?, ?, ?, ?, ?, 0)',
-          [crypto.randomUUID(), userId, title.trim(), toMysqlDatetime(next), repeat_type]
+          'INSERT INTO tasks (id, user_id, title, deadline, repeat_type, sort_order, color) VALUES (?, ?, ?, ?, ?, 0, ?)',
+          [crypto.randomUUID(), userId, title.trim(), toMysqlDatetime(next), repeat_type, storedColor]
         );
       }
     }

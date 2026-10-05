@@ -78,8 +78,8 @@ router.post('/:id/complete', async (c) => {
     const next = nextEvent(parseDeadline(event.start_dt), parseDeadline(event.end_dt), event.repeat_type);
     if (next) {
       await pool.query(
-        'INSERT INTO events (id, user_id, title, start_dt, end_dt, memo, repeat_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), userId, event.title, toMysqlDatetime(next.start), toMysqlDatetime(next.end), event.memo, event.repeat_type]
+        'INSERT INTO events (id, user_id, title, start_dt, end_dt, memo, repeat_type, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [crypto.randomUUID(), userId, event.title, toMysqlDatetime(next.start), toMysqlDatetime(next.end), event.memo, event.repeat_type, event.color]
       );
     }
   }
