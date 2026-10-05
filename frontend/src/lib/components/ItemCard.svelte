@@ -22,7 +22,6 @@
 		memo?: string;
 		// ドラッグハンドル（指定時のみ表示。ここからのみ並び替えを開始する）
 		onHandleDown?: () => void;
-		onHandleUp?: () => void;
 		// common
 		onEdit: () => void;
 		onDelete: () => void;
@@ -44,7 +43,6 @@
 		endDt = '',
 		memo = '',
 		onHandleDown,
-		onHandleUp,
 		onEdit,
 		onDelete
 	}: ItemCardProps = $props();
@@ -69,9 +67,6 @@
 				type="button"
 				onmousedown={onHandleDown}
 				ontouchstart={onHandleDown}
-				onmouseup={onHandleUp}
-				ontouchend={onHandleUp}
-				ontouchcancel={onHandleUp}
 				class="shrink-0 -ml-2 w-11 h-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-grab active:cursor-grabbing select-none"
 				style="touch-action: none"
 				title="ドラッグして並び替え"

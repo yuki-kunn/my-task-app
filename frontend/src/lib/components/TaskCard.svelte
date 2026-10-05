@@ -11,8 +11,7 @@
 		onToggle,
 		onEdit,
 		onDelete,
-		onHandleDown,
-		onHandleUp
+		onHandleDown
 	}: {
 		task: Task;
 		userColors?: UserColor[];
@@ -20,7 +19,6 @@
 		onEdit: (task: Task) => void;
 		onDelete: (id: string) => void;
 		onHandleDown?: () => void;
-		onHandleUp?: () => void;
 	} = $props();
 
 	const customHex = $derived(() => {
@@ -58,5 +56,4 @@
 	onEdit={() => onEdit(task)}
 	onDelete={() => onDelete(task.id)}
 	{onHandleDown}
-	{onHandleUp}
 />
