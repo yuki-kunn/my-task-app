@@ -19,6 +19,17 @@
 	let loading = $state(true);
 	let errorMsg = $state('');
 	const flipDurationMs = 200;
+	// ドラッグはハンドルからのみ開始する（カード本体はモバイルでスクロール可能にする）
+	let dragDisabled = $state(true);
+
+	function enableDrag() {
+		dragDisabled = false;
+	}
+
+	function disableDrag() {
+		// ドラッグ開始を dndzone が拾えるよう、イベント処理後に無効へ戻す
+		setTimeout(() => (dragDisabled = true), 0);
+	}
 
 	onMount(loadAll);
 
@@ -43,6 +54,7 @@
 
 	async function handleDndFinalize(e: CustomEvent<{ items: Task[] }>) {
 		tasks = e.detail.items;
+		dragDisabled = true;
 		const orders = tasks.map((task, index) => ({ id: task.id, sort_order: index }));
 		try {
 			await reorderTasks(orders);
@@ -135,14 +147,14 @@
 			<p class="text-gray-400 text-center py-10">タスクはありません。右上の「追加」から作成しましょう。</p>
 		{:else}
 			<section
-				use:dndzone={{ items: tasks, flipDurationMs }}
+				use:dndzone={{ items: tasks, flipDurationMs, dragDisabled }}
 				onconsider={handleDndConsider}
 				onfinalize={handleDndFinalize}
 				class="space-y-3 min-h-[200px]"
 			>
 				{#each tasks as task (task.id)}
 					<div animate:flip={{ duration: flipDurationMs }}>
-						<TaskCard {task} {userColors} onToggle={toggleComplete} onEdit={editTask} onDelete={removeTask} />
+						<TaskCard {task} {userColors} onToggle={toggleComplete} onEdit={editTask} onDelete={removeTask} onHandleDown={enableDrag} onHandleUp={disableDrag} />
 					</div>
 				{/each}
 			</section>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Trash2, Edit, Calendar as Memo, RotateCw, Clock, FileText } from 'lucide-svelte';
+	import { Trash2, Edit, Calendar as Memo, RotateCw, Clock, FileText, GripVertical } from 'lucide-svelte';
 	import { getDeadlineStyle, formatDeadline } from '$lib/deadline';
 	import { REPEAT_LABEL } from '$lib/utils';
 
@@ -20,6 +20,9 @@
 		startDt?: string;
 		endDt?: string;
 		memo?: string;
+		// ドラッグハンドル（指定時のみ表示。ここからのみ並び替えを開始する）
+		onHandleDown?: () => void;
+		onHandleUp?: () => void;
 		// common
 		onEdit: () => void;
 		onDelete: () => void;
@@ -40,6 +43,8 @@
 		startDt = '',
 		endDt = '',
 		memo = '',
+		onHandleDown,
+		onHandleUp,
 		onEdit,
 		onDelete
 	}: ItemCardProps = $props();
@@ -55,10 +60,26 @@
 <div
 	style={mergedStyle}
 	class="flex items-center justify-between p-4 rounded-xl bg-white shadow-sm border border-gray-100 transition
-		{type === 'task' ? 'cursor-grab active:cursor-grabbing' : ''}
 		{colorClass}"
 >
 	<div class="flex items-center gap-3 flex-1 min-w-0">
+		{#if onHandleDown}
+			<!-- touch-action: none はハンドルのみ。カード本体は通常どおりスクロールできる -->
+			<button
+				type="button"
+				onmousedown={onHandleDown}
+				ontouchstart={onHandleDown}
+				onmouseup={onHandleUp}
+				ontouchend={onHandleUp}
+				ontouchcancel={onHandleUp}
+				class="shrink-0 -ml-2 w-11 h-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-grab active:cursor-grabbing select-none"
+				style="touch-action: none"
+				title="ドラッグして並び替え"
+				aria-label="並び替え"
+			>
+				<GripVertical size={20} />
+			</button>
+		{/if}
 		{#if type === 'task' && onToggle}
 			<input
 				type="checkbox"
