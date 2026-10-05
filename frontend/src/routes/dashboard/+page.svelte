@@ -27,7 +27,8 @@
 	}
 
 	function disableDrag() {
-		// ドラッグ開始を dndzone が拾えるよう、イベント処理後に無効へ戻す
+		// 押下が終わった/中断された場合に無効へ戻す（mouseup が来ない右クリック・フォーカス喪失対策）。
+		// ドラッグ開始を dndzone が拾えるよう、イベント処理後に戻す。進行中のドラッグはライブラリ側が処理する
 		setTimeout(() => (dragDisabled = true), 0);
 	}
 
@@ -110,6 +111,14 @@
 	}
 </script>
 
+<svelte:window
+	onmouseup={disableDrag}
+	ontouchend={disableDrag}
+	ontouchcancel={disableDrag}
+	onblur={disableDrag}
+	oncontextmenu={disableDrag}
+/>
+
 <div class="space-y-6">
 	<div class="flex justify-between items-center">
 		<div class="flex gap-1 bg-gray-100 p-1 rounded-lg">
@@ -154,7 +163,7 @@
 			>
 				{#each tasks as task (task.id)}
 					<div animate:flip={{ duration: flipDurationMs }}>
-						<TaskCard {task} {userColors} onToggle={toggleComplete} onEdit={editTask} onDelete={removeTask} onHandleDown={enableDrag} onHandleUp={disableDrag} />
+						<TaskCard {task} {userColors} onToggle={toggleComplete} onEdit={editTask} onDelete={removeTask} onHandleDown={enableDrag} />
 					</div>
 				{/each}
 			</section>
