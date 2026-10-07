@@ -2,6 +2,7 @@
 	import { Trash2, Edit, Calendar as Memo, RotateCw, Clock, FileText, GripVertical } from 'lucide-svelte';
 	import { getDeadlineStyle, formatDeadline } from '$lib/deadline';
 	import { REPEAT_LABEL } from '$lib/utils';
+	import { on } from 'svelte/events';
 
 	type ItemCardProps = {
 		type: 'task' | 'event';
@@ -47,6 +48,16 @@
 		onDelete
 	}: ItemCardProps = $props();
 
+	// Svelte 5 の onmousedown / ontouchstart は document へ委譲されるため、ラッパー（dndzone）の
+	// リスナーより後に呼ばれてしまい同じ操作でドラッグが始まらない。直接リスナーを付けて先に呼ぶ
+	function handlePress(node: HTMLElement) {
+		const off = [
+			on(node, 'mousedown', () => onHandleDown?.()),
+			on(node, 'touchstart', () => onHandleDown?.(), { passive: true })
+		];
+		return { destroy: () => off.forEach((fn) => fn()) };
+	}
+
 	const computedDeadlineStyle = $derived(
 		type === 'task' && deadline ? getDeadlineStyle(deadline, isCompleted) : deadlineStyle
 	);
@@ -65,8 +76,7 @@
 			<!-- touch-action: none はハンドルのみ。カード本体は通常どおりスクロールできる -->
 			<button
 				type="button"
-				onmousedown={onHandleDown}
-				ontouchstart={onHandleDown}
+				use:handlePress
 				class="shrink-0 -ml-2 w-11 h-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-grab active:cursor-grabbing select-none"
 				style="touch-action: none"
 				title="ドラッグして並び替え"
