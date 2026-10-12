@@ -6,7 +6,7 @@ import { pool, initDB } from './db.js';
 import { authMiddleware, adminMiddleware } from './auth.js';
 import { apiTokenMiddleware } from './apiTokens.js';
 import { startScheduler } from './scheduler.js';
-import { isPushConfigured } from './push.js';
+import { isPushConfigured, sendNotificationToUser } from './push.js';
 
 import authRouter from './routes/auth.js';
 import tasksRouter from './routes/tasks.js';
@@ -121,6 +121,29 @@ app.post('/api/push/unsubscribe', authMiddleware, async (c) => {
     return c.json({ success: false, message: 'endpointが必要です' }, 400);
   }
   await pool.query('DELETE FROM push_subscriptions WHERE endpoint = ?', [endpoint]);
+  return c.json({ success: true });
+});
+
+// テスト通知: ログイン中ユーザー自身の購読済みデバイスへ即時送信する。
+app.post('/api/push/test', authMiddleware, async (c) => {
+  const userId = c.get('userId');
+  if (!isPushConfigured()) {
+    return c.json({ success: false, message: 'サーバー側で通知が設定されていません' }, 503);
+  }
+
+  const [rows] = await pool.query<any[]>(
+    'SELECT COUNT(*) AS cnt FROM push_subscriptions WHERE user_id = ?',
+    [userId]
+  );
+  if (rows[0].cnt === 0) {
+    return c.json({ success: false, message: '通知が購読されていません。先に通知をオンにしてください' }, 400);
+  }
+
+  await sendNotificationToUser(userId, {
+    title: 'Tasqa テスト通知',
+    body: 'この通知が表示されていれば、プッシュ通知は正常に動作しています。',
+    url: '/dashboard',
+  });
   return c.json({ success: true });
 });
 

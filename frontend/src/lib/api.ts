@@ -198,6 +198,10 @@ export function unsubscribePush(endpoint: string) {
 	});
 }
 
+export function sendTestNotification() {
+	return request<{ success: boolean }>('/push/test', { method: 'POST' });
+}
+
 // --- API tokens (Obsidian export, etc.) ---------------------------------------
 
 export interface ApiToken {

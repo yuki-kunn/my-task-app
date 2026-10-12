@@ -4,7 +4,7 @@
 	import { LogOut, ShieldAlert, Bell, User, KeyRound, Link2, Trash2, Copy, Check } from 'lucide-svelte';
 	import {
 		changePassword, fetchMe, updateDisplayName, clearToken, getPasswordIsDefault,
-		fetchApiTokens, createApiToken, deleteApiToken, ApiError
+		fetchApiTokens, createApiToken, deleteApiToken, sendTestNotification, ApiError
 	} from '$lib/api';
 	import type { ApiToken } from '$lib/api';
 	import {
@@ -32,6 +32,8 @@
 	let pushEnabled = $state(false);
 	let pushBusy = $state(false);
 	let pushError = $state('');
+	let testBusy = $state(false);
+	let testMsg = $state('');
 
 	let apiTokens = $state<ApiToken[]>([]);
 	let newTokenName = $state('');
@@ -109,6 +111,20 @@
 			pushError = err instanceof Error ? err.message : '通知設定の変更に失敗しました';
 		} finally {
 			pushBusy = false;
+		}
+	}
+
+	async function handleTestNotification() {
+		testBusy = true;
+		testMsg = '';
+		pushError = '';
+		try {
+			await sendTestNotification();
+			testMsg = 'テスト通知を送信しました。端末に通知が届いているか確認してください。';
+		} catch (err) {
+			pushError = err instanceof ApiError ? err.message : 'テスト通知の送信に失敗しました';
+		} finally {
+			testBusy = false;
 		}
 	}
 
@@ -274,6 +290,9 @@
 				{#if pushError}
 					<p class="text-red-500 text-sm mb-3">{pushError}</p>
 				{/if}
+				{#if testMsg}
+					<p class="text-green-600 text-sm mb-3">{testMsg}</p>
+				{/if}
 				<button
 					onclick={togglePush}
 					disabled={pushBusy}
@@ -283,6 +302,15 @@
 				>
 					{pushBusy ? '処理中...' : pushEnabled ? '通知をオフにする' : '通知をオンにする'}
 				</button>
+				{#if pushEnabled}
+					<button
+						onclick={handleTestNotification}
+						disabled={testBusy}
+						class="w-full mt-2 py-2 rounded-lg font-semibold transition disabled:opacity-50 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
+					>
+						{testBusy ? '送信中...' : 'テスト通知を送信'}
+					</button>
+				{/if}
 			{/if}
 		</div>
 
