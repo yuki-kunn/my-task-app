@@ -45,7 +45,7 @@ AI によるテキスト解析からプッシュ通知まで、日常の予定�
 | 認証 | JWT (jose) / bcryptjs |
 | DB | MySQL (mysql2/promise) |
 | メール | SendGrid |
-| AI | Google Gemini API (2.5 Flash → 1.5 Flash fallback) |
+| AI | Google Gemini API (2.5 Flash → 2.5 Flash-Lite fallback) |
 | プッシュ通知 | Web Push / VAPID (web-push) |
 | スケジューラー | node-cron |
 | デプロイ | Railway |
@@ -337,7 +337,7 @@ for (const file of existingFiles) {
 - **モード**: `simple`（自然文 → 単一タスク）/ `organize`（長文 → 複数タスク・予定に分解）
 - **入力制限**: simple 200 文字 / organize 500 文字
 - **レート制限**: ユーザーごとに 1 日 5 回（`AI_DAILY_LIMIT` で変更可）。管理者は無制限
-- **フォールバック**: Gemini 2.5 Flash が 503 の場合、Gemini 1.5 Flash に自動切替
+- **フォールバック**: Gemini 2.5 Flash が 503 の場合、Gemini 2.5 Flash-Lite に自動切替
 
 ---
 
