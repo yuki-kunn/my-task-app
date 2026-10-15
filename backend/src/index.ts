@@ -4,7 +4,7 @@ import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import { pool, initDB } from './db.js';
 import { authMiddleware, adminMiddleware } from './auth.js';
-import { apiTokenMiddleware } from './apiTokens.js';
+import { apiTokenAuth, type TokenScope } from './apiTokens.js';
 import { startScheduler } from './scheduler.js';
 import { isPushConfigured, sendNotificationToUser } from './push.js';
 
@@ -17,8 +17,9 @@ import aiRouter from './routes/ai.js';
 import colorsRouter from './routes/colors.js';
 import apiTokensRouter from './routes/apiTokens.js';
 import obsidianRouter from './routes/obsidian.js';
+import { createMcpRouter } from './mcp/route.js';
 
-type Variables = { userId: string; userRole: string; apiTokenId?: string };
+type Variables = { userId: string; userRole: string; apiTokenId?: string; apiTokenScope: TokenScope };
 const app = new Hono<{ Variables: Variables }>();
 
 const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
@@ -90,8 +91,14 @@ app.route('/api/tokens', apiTokensRouter);
 // Obsidian export — authenticated with a long-lived personal API token instead
 // of the short-lived session JWT, since this is meant to be called by an
 // unattended script rather than a logged-in browser.
-app.use('/api/obsidian/*', apiTokenMiddleware);
+app.use('/api/obsidian/*', apiTokenAuth(['obsidian_export']));
 app.route('/api/obsidian', obsidianRouter);
+
+// MCP server — same long-lived token mechanism, but only tokens issued with an
+// MCP scope are accepted here (and MCP tokens are rejected by /api/obsidian).
+app.use('/mcp', apiTokenAuth(['mcp_read', 'mcp_write']));
+app.use('/mcp/*', apiTokenAuth(['mcp_read', 'mcp_write']));
+app.route('/mcp', createMcpRouter(allowedOrigins));
 
 // --- Push notifications ------------------------------------------------------
 

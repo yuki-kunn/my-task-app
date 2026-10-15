@@ -1,11 +1,17 @@
 import { Hono } from 'hono';
 import { pool } from '../db.js';
-import { generateApiToken } from '../apiTokens.js';
+import { generateApiToken, isTokenScope, type TokenScope } from '../apiTokens.js';
 
 type Variables = { userId: string; userRole: string };
 const router = new Hono<{ Variables: Variables }>();
 
 const MAX_TOKENS_PER_USER = 10;
+
+const DEFAULT_LABELS: Record<TokenScope, string> = {
+  obsidian_export: 'Obsidian連携',
+  mcp_read: 'MCP(読み取り)',
+  mcp_write: 'MCP(読み書き)',
+};
 
 // List tokens (metadata only — the plaintext is never stored, so it can never
 // be shown again after issuance).
@@ -21,7 +27,14 @@ router.get('/', async (c) => {
 
 router.post('/', async (c) => {
   const userId = c.get('userId');
-  const { name } = await c.req.json<{ name?: string }>().catch(() => ({ name: undefined }));
+  const body = await c.req
+    .json<{ name?: string; scope?: string }>()
+    .catch(() => ({ name: undefined, scope: undefined }));
+  // Omitting `scope` keeps the pre-MCP behaviour (Obsidian export token).
+  const scope = body.scope ?? 'obsidian_export';
+  if (!isTokenScope(scope)) {
+    return c.json({ success: false, message: 'scope が不正です' }, 400);
+  }
 
   const [countRows] = await pool.query<any[]>(
     'SELECT COUNT(*) AS cnt FROM api_tokens WHERE user_id = ?',
@@ -33,14 +46,14 @@ router.post('/', async (c) => {
 
   const { plaintext, hash } = generateApiToken();
   const id = crypto.randomUUID();
-  const label = (name ?? '').trim().slice(0, 100) || 'Obsidian連携';
+  const label = (body.name ?? '').trim().slice(0, 100) || DEFAULT_LABELS[scope];
   await pool.query(
     'INSERT INTO api_tokens (id, user_id, name, token_hash, scope) VALUES (?, ?, ?, ?, ?)',
-    [id, userId, label, hash, 'obsidian_export']
+    [id, userId, label, hash, scope]
   );
 
   // Plaintext is returned exactly once. The caller must save it now.
-  return c.json({ success: true, id, name: label, token: plaintext });
+  return c.json({ success: true, id, name: label, scope, token: plaintext });
 });
 
 router.delete('/:id', async (c) => {

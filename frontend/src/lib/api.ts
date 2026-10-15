@@ -216,10 +216,18 @@ export function fetchApiTokens() {
 	return request<ApiToken[]>('/tokens');
 }
 
-export function createApiToken(name: string) {
-	return request<{ success: boolean; id: string; name: string; token: string }>('/tokens', {
+export type ApiTokenScope = 'obsidian_export' | 'mcp_read' | 'mcp_write';
+
+export const API_TOKEN_SCOPES: { value: ApiTokenScope; label: string; hint: string }[] = [
+	{ value: 'obsidian_export', label: 'Obsidian連携', hint: 'タスク・予定の読み取りのみ（Obsidian同期用）' },
+	{ value: 'mcp_read', label: 'AI連携（読み取り）', hint: 'ClaudeなどのAIから予定を確認するだけ' },
+	{ value: 'mcp_write', label: 'AI連携（読み書き）', hint: 'AIがタスク・予定を作成・変更できる' }
+];
+
+export function createApiToken(name: string, scope: ApiTokenScope = 'obsidian_export') {
+	return request<{ success: boolean; id: string; name: string; scope: ApiTokenScope; token: string }>('/tokens', {
 		method: 'POST',
-		body: JSON.stringify({ name })
+		body: JSON.stringify({ name, scope })
 	});
 }
 
