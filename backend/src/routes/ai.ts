@@ -77,7 +77,7 @@ router.post('/parse', async (c) => {
 {"type":"task"|"event","title":"...","deadline":"YYYY-MM-DDTHH:MM"(task),"start_dt":"..."(event),"end_dt":"..."(event),"memo":"...","repeat_type":"none"|"daily"|"weekly"|"yearly"}
 必ずJSONオブジェクトのみ返すこと。`;
   const prompt = `${systemPrompt}\n\nユーザー入力: ${text}`;
-  const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+  const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
   const genai = new GoogleGenerativeAI(apiKey);
   let lastErr: unknown;
   for (const modelName of models) {
