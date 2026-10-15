@@ -216,9 +216,29 @@ node -e "const wp = require('web-push'); const k = wp.generateVAPIDKeys(); conso
 | POST | `/api/push/unsubscribe` | プッシュ購読解除 |
 | GET/POST/DELETE | `/api/tokens` | 個人用 API トークン管理（JWT 認証） |
 | GET | `/api/obsidian/export` | タスク・予定のエクスポート（API トークン認証） |
+| POST | `/mcp` | MCP サーバー（API トークン認証・AI 連携用スコープ） |
 | GET | `/api/admin/users` | ユーザー一覧 (管理者専用) |
 | PUT | `/api/admin/users/:id/suspend` | ユーザー停止 |
 | DELETE | `/api/admin/users/:id` | ユーザー削除 |
+
+---
+
+## MCP サーバー (Claude などの AI から操作)
+
+`POST /mcp` で、MCP (2026-07-28 版・ステートレス Streamable HTTP) のサーバーとして動作します。旧版 (`initialize` あり) のクライアントも受け付けます。詳細は [docs/mcp-server-spec.md](docs/mcp-server-spec.md)。
+
+- 認証は個人 API トークン (`Authorization: Bearer tasqa_...`)。設定画面で「AI連携（読み取り）」または「AI連携（読み書き）」を選んで発行します。
+- トークンは種類ごとに使える範囲が分かれています。Obsidian 用トークンは `/mcp` では使えず、AI 連携用トークンは `/api/obsidian` では使えません。
+- 現在使えるツール: `list_agenda` (期間内のタスクと予定)、`get_item` (ID で1件)。書き込み系は今後追加します。
+- 日時は日本時間 (JST)。オフセットを省略した値は JST として扱います。
+
+```bash
+curl -s https://your-backend.railway.app/mcp \
+  -H "Authorization: Bearer tasqa_xxx" \
+  -H "MCP-Protocol-Version: 2026-07-28" -H "Mcp-Method: tools/list" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}'
+```
 
 ---
 

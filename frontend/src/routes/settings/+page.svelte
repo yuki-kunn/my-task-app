@@ -4,9 +4,9 @@
 	import { LogOut, ShieldAlert, Bell, User, KeyRound, Link2, Trash2, Copy, Check } from 'lucide-svelte';
 	import {
 		changePassword, fetchMe, updateDisplayName, clearToken, getPasswordIsDefault,
-		fetchApiTokens, createApiToken, deleteApiToken, sendTestNotification, ApiError
+		fetchApiTokens, createApiToken, deleteApiToken, sendTestNotification, ApiError, API_TOKEN_SCOPES
 	} from '$lib/api';
-	import type { ApiToken } from '$lib/api';
+	import type { ApiToken, ApiTokenScope } from '$lib/api';
 	import {
 		isPushSupported,
 		getPushSubscription,
@@ -37,6 +37,9 @@
 
 	let apiTokens = $state<ApiToken[]>([]);
 	let newTokenName = $state('');
+	let newTokenScope = $state<ApiTokenScope>('obsidian_export');
+	const scopeInfo = $derived(API_TOKEN_SCOPES.find((s) => s.value === newTokenScope));
+	const scopeLabel = (scope: string) => API_TOKEN_SCOPES.find((s) => s.value === scope)?.label ?? scope;
 	let issuedToken = $state<string | null>(null);
 	let tokenBusy = $state(false);
 	let tokenError = $state('');
@@ -65,7 +68,7 @@
 		tokenError = '';
 		tokenBusy = true;
 		try {
-			const res = await createApiToken(newTokenName.trim() || 'Obsidian連携');
+			const res = await createApiToken(newTokenName.trim() || scopeLabel(newTokenScope), newTokenScope);
 			issuedToken = res.token;
 			copied = false;
 			newTokenName = '';
@@ -316,10 +319,10 @@
 
 		<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
 			<h2 class="text-lg font-bold text-gray-800 flex items-center gap-2 mb-2">
-				<Link2 size={20} class="text-indigo-600" /> 外部連携（Obsidianなど）
+				<Link2 size={20} class="text-indigo-600" /> 外部連携（Obsidian・AIなど）
 			</h2>
 			<p class="text-sm text-gray-600 mb-4">
-				APIトークンを発行すると、タスク・予定をObsidianなどの外部ツールから定期取得できます。
+				APIトークンを発行すると、Obsidianへの同期や、ClaudeなどのAIからの操作ができます。用途ごとに種類を選んでください。
 			</p>
 
 			{#if issuedToken}
@@ -353,7 +356,7 @@
 							<div class="min-w-0">
 								<p class="font-medium text-gray-800 truncate">{t.name}</p>
 								<p class="text-xs text-gray-400">
-									{t.last_used_at ? `最終使用: ${new Date(t.last_used_at).toLocaleDateString('ja-JP')}` : '未使用'}
+									{scopeLabel(t.scope)} ・ {t.last_used_at ? `最終使用: ${new Date(t.last_used_at).toLocaleDateString('ja-JP')}` : '未使用'}
 								</p>
 							</div>
 							<button
@@ -373,13 +376,22 @@
 				<p class="text-red-500 text-sm mb-2">{tokenError}</p>
 			{/if}
 
-			<form onsubmit={(e) => { e.preventDefault(); handleCreateToken(); }} class="flex gap-2">
+			<form onsubmit={(e) => { e.preventDefault(); handleCreateToken(); }} class="flex flex-col gap-2 sm:flex-row">
+				<select
+					bind:value={newTokenScope}
+					aria-label="トークンの種類"
+					class="px-3 py-2 text-sm border rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+				>
+					{#each API_TOKEN_SCOPES as s (s.value)}
+						<option value={s.value}>{s.label}</option>
+					{/each}
+				</select>
 				<input
 					type="text"
 					bind:value={newTokenName}
 					maxlength="100"
-					placeholder="トークン名（例: Obsidian）"
-					class="flex-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+					placeholder="トークン名（省略可）"
+					class="flex-1 min-w-0 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 				/>
 				<button
 					type="submit"
@@ -389,6 +401,9 @@
 					{tokenBusy ? '発行中...' : '発行'}
 				</button>
 			</form>
+			{#if scopeInfo}
+				<p class="text-xs text-gray-500 mt-2">{scopeInfo.hint}</p>
+			{/if}
 		</div>
 
 		<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">

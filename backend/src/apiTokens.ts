@@ -4,6 +4,16 @@ import { pool } from './db.js';
 
 const TOKEN_PREFIX = 'tasqa_';
 
+// Scopes a personal API token can carry. A token only works on the endpoints
+// that list its scope, so a leaked Obsidian read-only token cannot drive the
+// MCP server (and vice versa). `mcp_write` also grants everything `mcp_read` does.
+export const TOKEN_SCOPES = ['obsidian_export', 'mcp_read', 'mcp_write'] as const;
+export type TokenScope = (typeof TOKEN_SCOPES)[number];
+
+export function isTokenScope(value: unknown): value is TokenScope {
+  return typeof value === 'string' && (TOKEN_SCOPES as readonly string[]).includes(value);
+}
+
 // Generates a plaintext token (shown once) and its SHA-256 hash (stored).
 // Plaintext format: tasqa_<43 base64url chars> — visually distinguishable from
 // the JWT session tokens, and greppable if it ever leaks into a log.
@@ -18,12 +28,24 @@ export function hashApiToken(plaintext: string): string {
   return crypto.createHash('sha256').update(plaintext).digest('hex');
 }
 
-type Variables = { userId: string; userRole: string; apiTokenId: string };
+type Variables = { userId: string; userRole: string; apiTokenId: string; apiTokenScope: TokenScope };
 
-// Auth for machine-to-machine endpoints (Obsidian export). Accepts a long-lived
-// personal API token via `Authorization: Bearer tasqa_...`, distinct from the
-// short-lived JWT used by the SPA. Suspended users are rejected, same as JWT auth.
-export async function apiTokenMiddleware(c: Context<{ Variables: Variables }>, next: Next) {
+// Auth for machine-to-machine endpoints (Obsidian export, MCP). Accepts a
+// long-lived personal API token via `Authorization: Bearer tasqa_...`, distinct
+// from the short-lived JWT used by the SPA. The token's scope must be one of
+// `allowedScopes`. Suspended users are rejected, same as JWT auth.
+export function apiTokenAuth(allowedScopes: readonly TokenScope[]) {
+  return async (c: Context<{ Variables: Variables }>, next: Next) => {
+    const denied = await authenticateApiToken(c, allowedScopes);
+    if (denied) return denied;
+    await next();
+  };
+}
+
+async function authenticateApiToken(
+  c: Context<{ Variables: Variables }>,
+  allowedScopes: readonly TokenScope[]
+): Promise<Response | null> {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token || !token.startsWith(TOKEN_PREFIX)) {
@@ -32,7 +54,7 @@ export async function apiTokenMiddleware(c: Context<{ Variables: Variables }>, n
 
   const hash = hashApiToken(token);
   const [rows] = await pool.query<any[]>(
-    `SELECT t.id AS token_id, u.id AS user_id, u.role, u.is_suspended
+    `SELECT t.id AS token_id, t.scope, u.id AS user_id, u.role, u.is_suspended
      FROM api_tokens t JOIN users u ON u.id = t.user_id
      WHERE t.token_hash = ?`,
     [hash]
@@ -44,11 +66,17 @@ export async function apiTokenMiddleware(c: Context<{ Variables: Variables }>, n
   if (row.is_suspended) {
     return c.json({ success: false, message: 'このアカウントは停止されています' }, 403);
   }
+  // Same message as an unknown token so the response does not reveal that the
+  // token exists but belongs to another integration.
+  if (!isTokenScope(row.scope) || !allowedScopes.includes(row.scope)) {
+    return c.json({ success: false, message: 'APIトークンが無効です' }, 401);
+  }
 
   await pool.query('UPDATE api_tokens SET last_used_at = UTC_TIMESTAMP() WHERE id = ?', [row.token_id]);
 
   c.set('userId', row.user_id);
   c.set('userRole', row.role ?? 'user');
   c.set('apiTokenId', row.token_id);
-  await next();
+  c.set('apiTokenScope', row.scope);
+  return null;
 }
